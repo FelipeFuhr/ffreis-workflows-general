@@ -1,0 +1,35 @@
+name: Self Test
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  actionlint:
+    uses: ./.github/workflows/general-actionlint.yml
+    with:
+      working-directory: examples/hello
+
+  gitleaks:
+    uses: ./.github/workflows/general-gitleaks.yml
+    with:
+      working-directory: examples/hello
+      upload-sarif: true
+
+  shellcheck:
+    uses: ./.github/workflows/general-shellcheck.yml
+    with:
+      working-directory: examples/hello
+
+  codeql:
+    uses: ./.github/workflows/general-codeql.yml
+    with:
+      languages: javascript
+      source-root: examples/hello
