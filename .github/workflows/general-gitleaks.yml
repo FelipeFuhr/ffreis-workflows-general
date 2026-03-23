@@ -1,0 +1,79 @@
+name: General / gitleaks
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory to scan
+        required: false
+        type: string
+        default: .
+      scan-history:
+        description: Scan git history (requires fetch-depth 0)
+        required: false
+        type: boolean
+        default: false
+      gitleaks-version:
+        description: gitleaks version to install (without leading v)
+        required: false
+        type: string
+        default: 8.24.3
+      config-path:
+        description: Optional gitleaks config path (relative to repo root)
+        required: false
+        type: string
+        default: ""
+      upload-sarif:
+        description: Upload SARIF to GitHub code scanning
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  gitleaks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: ${{ inputs.scan-history && 0 || 1 }}
+
+      - name: Install gitleaks
+        env:
+          GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
+        run: |
+          set -euo pipefail
+          url="https://github.com/zricethezav/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          curl -fsSL "$url" -o "$tmp/gitleaks.tgz"
+          tar -xzf "$tmp/gitleaks.tgz" -C "$tmp"
+          sudo install -m 0755 "$tmp/gitleaks" /usr/local/bin/gitleaks
+          gitleaks version
+
+      - name: Run gitleaks
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          CONFIG_PATH: ${{ inputs.config-path }}
+          SCAN_HISTORY: ${{ inputs.scan-history }}
+        run: |
+          set -euo pipefail
+          cd "$WORKING_DIRECTORY"
+          args=(detect --no-banner --redact --source . --report-format sarif --report-path "${GITHUB_WORKSPACE}/gitleaks.sarif")
+          if [[ "$SCAN_HISTORY" != "true" ]]; then
+            args+=(--no-git)
+          fi
+          if [[ -n "$CONFIG_PATH" ]]; then
+            args+=(--config "${GITHUB_WORKSPACE}/${CONFIG_PATH}")
+          fi
+          gitleaks "${args[@]}"
+
+      - name: Upload SARIF
+        if: inputs.upload-sarif
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: gitleaks.sarif
+          category: gitleaks
