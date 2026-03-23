@@ -6,9 +6,12 @@ SHELL         := /usr/bin/env bash
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-lint: ## Lint workflow YAML (actionlint if installed)
-	@command -v actionlint >/dev/null 2>&1 && actionlint || \
-	  python3 -c "import sys, glob, yaml; [yaml.safe_load(open(f)) for f in glob.glob('.github/workflows/*.yml')]; print('YAML valid')"
+lint: ## Lint workflow YAML (requires actionlint)
+	@command -v actionlint >/dev/null 2>&1 || { \
+		echo "ERROR: actionlint not found. Install it from https://github.com/rhysd/actionlint#installation and ensure it is on your PATH."; \
+		exit 1; \
+	}
+	actionlint
 
 validate: lint ## Alias for lint
 
@@ -24,7 +27,7 @@ lefthook-bootstrap: ## Download lefthook binary to .bin/
 	LEFTHOOK_VERSION="1.7.10" BIN_DIR=".bin" bash ./scripts/bootstrap_lefthook.sh
 
 lefthook-install: ## Install git hooks via lefthook
-	lefthook install
+	.bin/lefthook install
 
 hooks: lefthook-bootstrap lefthook-install ## Bootstrap and install all git hooks
 
