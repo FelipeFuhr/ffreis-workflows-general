@@ -27,3 +27,9 @@ jobs:
     uses: ./.github/workflows/general-shellcheck.yml
     with:
       working-directory: examples/hello
+
+  codeql:
+    uses: ./.github/workflows/general-codeql.yml
+    with:
+      languages: javascript
+      source-root: examples/hello

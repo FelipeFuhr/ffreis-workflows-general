@@ -1,0 +1,84 @@
+name: General / CodeQL
+
+on:
+  workflow_call:
+    inputs:
+      languages:
+        description: Comma-separated CodeQL languages (e.g. "go,python" or "javascript")
+        required: true
+        type: string
+      source-root:
+        description: Source root to analyze
+        required: false
+        type: string
+        default: .
+      build-command:
+        description: Optional build command. If empty, uses CodeQL autobuild.
+        required: false
+        type: string
+        default: ""
+      query-suite:
+        description: Optional CodeQL query suite (e.g. security-extended)
+        required: false
+        type: string
+        default: ""
+
+permissions:
+  actions: read
+  contents: read
+  security-events: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  analyze:
+    name: CodeQL
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Initialize CodeQL
+        env:
+          LANGUAGES: ${{ inputs.languages }}
+          SOURCE_ROOT: ${{ inputs.source-root }}
+          QUERY_SUITE: ${{ inputs.query-suite }}
+        run: |
+          set -euo pipefail
+          echo "languages=$LANGUAGES"
+          echo "source_root=$SOURCE_ROOT"
+          echo "query_suite=$QUERY_SUITE"
+
+      - name: CodeQL init (default queries)
+        if: inputs.query-suite == ''
+        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          languages: ${{ inputs.languages }}
+          source-root: ${{ inputs.source-root }}
+
+      - name: CodeQL init (custom queries)
+        if: inputs.query-suite != ''
+        uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          languages: ${{ inputs.languages }}
+          source-root: ${{ inputs.source-root }}
+          queries: ${{ inputs.query-suite }}
+
+      - name: Autobuild
+        if: inputs.build-command == ''
+        uses: github/codeql-action/autobuild@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+
+      - name: Build (manual)
+        if: inputs.build-command != ''
+        env:
+          BUILD_COMMAND: ${{ inputs.build-command }}
+        run: |
+          set -euo pipefail
+          bash -lc "$BUILD_COMMAND"
+
+      - name: CodeQL analyze
+        uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          category: "/language:${{ inputs.languages }}"
