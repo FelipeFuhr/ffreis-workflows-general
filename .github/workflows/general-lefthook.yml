@@ -1,0 +1,153 @@
+name: General / Lefthook
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Working directory (repo root by default)"
+        type: string
+        default: "."
+      go-version:
+        description: "Go version (optional; overrides go-version-file)"
+        type: string
+        default: ""
+      go-version-file:
+        description: "Go version file (go.mod by default)"
+        type: string
+        default: "go.mod"
+      install-golangci-lint:
+        description: "Install golangci-lint (Go)"
+        type: boolean
+        default: true
+      install-govulncheck:
+        description: "Install govulncheck (Go)"
+        type: boolean
+        default: false
+      install-gitleaks:
+        description: "Install gitleaks"
+        type: boolean
+        default: true
+      gitleaks-version:
+        description: "gitleaks version to install (without leading v)"
+        type: string
+        default: "8.24.2"
+      lefthook-bootstrap-command:
+        description: "Command to fetch/build lefthook binary (e.g. 'make lefthook-bootstrap')"
+        type: string
+        default: "make lefthook-bootstrap"
+      lefthook-bin:
+        description: "Path to lefthook binary (relative to working-directory)"
+        type: string
+        default: ".bin/lefthook"
+      stage-files:
+        description: "Stage files before running staged hooks"
+        type: boolean
+        default: true
+      run-pre-commit:
+        description: "Run lefthook pre-commit"
+        type: boolean
+        default: true
+      run-commit-msg:
+        description: "Run lefthook commit-msg using a temp message"
+        type: boolean
+        default: true
+      run-pre-push:
+        description: "Run lefthook pre-push"
+        type: boolean
+        default: false
+      commit-msg-text:
+        description: "Commit message used to validate the commit-msg hook"
+        type: string
+        default: "ci(hooks): validate commit-msg hook"
+
+permissions:
+  contents: read
+
+jobs:
+  lefthook:
+    name: Lefthook
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Setup Go
+        if: inputs.install-golangci-lint || inputs.install-govulncheck
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && inputs.go-version-file || '' }}
+          cache: true
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Install hook tools
+        shell: bash
+        env:
+          INSTALL_GOLANGCI_LINT: ${{ inputs.install-golangci-lint }}
+          INSTALL_GOVULNCHECK: ${{ inputs.install-govulncheck }}
+          INSTALL_GITLEAKS: ${{ inputs.install-gitleaks }}
+          GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+          if [[ "$INSTALL_GOLANGCI_LINT" == "true" ]]; then
+            GOBIN="${HOME}/.local/bin" go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+          fi
+
+          if [[ "$INSTALL_GOVULNCHECK" == "true" ]]; then
+            GOBIN="${HOME}/.local/bin" go install golang.org/x/vuln/cmd/govulncheck@latest
+          fi
+
+          if [[ "$INSTALL_GITLEAKS" == "true" ]]; then
+            curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C "${HOME}/.local/bin" gitleaks
+          fi
+
+      - name: Stage files for staged hooks
+        if: inputs.stage-files
+        run: git add -A
+
+      - name: Bootstrap lefthook
+        shell: bash
+        env:
+          BOOTSTRAP: ${{ inputs.lefthook-bootstrap-command }}
+        run: |
+          set -euo pipefail
+          eval "$BOOTSTRAP"
+
+      - name: Run pre-commit hooks
+        if: inputs.run-pre-commit
+        shell: bash
+        env:
+          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
+        run: |
+          set -euo pipefail
+          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run pre-commit
+
+      - name: Run commit-msg hook
+        if: inputs.run-commit-msg
+        shell: bash
+        env:
+          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
+          COMMIT_MSG_TEXT: ${{ inputs.commit-msg-text }}
+        run: |
+          set -euo pipefail
+          msg_file="$(mktemp)"
+          echo "${COMMIT_MSG_TEXT}" > "${msg_file}"
+          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run commit-msg -- "${msg_file}"
+
+      - name: Run pre-push hooks
+        if: inputs.run-pre-push
+        shell: bash
+        env:
+          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
+        run: |
+          set -euo pipefail
+          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run pre-push
+

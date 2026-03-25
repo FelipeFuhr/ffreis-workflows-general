@@ -1,0 +1,56 @@
+name: General / Trivy Filesystem Scan
+
+on:
+  workflow_call:
+    inputs:
+      scan-ref:
+        description: "Directory to scan"
+        type: string
+        default: "."
+      severity:
+        description: "Comma-separated list of severities to report"
+        type: string
+        default: "HIGH,CRITICAL"
+      exit-code:
+        description: "Exit code when issues are found"
+        type: number
+        default: 1
+      upload-sarif:
+        description: "Upload SARIF to GitHub code scanning"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  trivy:
+    name: Trivy (fs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Run Trivy (filesystem)
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
+        with:
+          scan-type: fs
+          scan-ref: ${{ inputs.scan-ref }}
+          exit-code: ${{ inputs.exit-code }}
+          severity: ${{ inputs.severity }}
+          format: sarif
+          output: trivy.sarif
+
+      - name: Validate SARIF output
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s trivy.sarif || (echo "trivy.sarif was not generated or is empty" >&2 && exit 1)
+
+      - name: Upload SARIF
+        if: inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: trivy.sarif
+          category: trivy-fs
+

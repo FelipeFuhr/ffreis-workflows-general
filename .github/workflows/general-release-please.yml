@@ -1,0 +1,64 @@
+name: General / release-please
+
+on:
+  workflow_call:
+    inputs:
+      dry-run:
+        description: If true, validates config files and exits without creating PRs/releases
+        required: false
+        type: boolean
+        default: false
+      config-file:
+        description: Path to release-please config file (for manifest mode)
+        required: false
+        type: string
+        default: ".release-please-config.json"
+      manifest-file:
+        description: Path to release-please manifest file (for manifest mode)
+        required: false
+        type: string
+        default: ".release-please-manifest.json"
+      target-branch:
+        description: Target branch for release PRs/releases
+        required: false
+        type: string
+        default: "main"
+    secrets:
+      RELEASE_PLEASE_TOKEN:
+        description: Optional token (PAT) to run release-please; defaults to github.token
+        required: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  release-please:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Validate config (dry-run)
+        if: inputs.dry-run
+        env:
+          CONFIG_FILE: ${{ inputs.config-file }}
+          MANIFEST_FILE: ${{ inputs.manifest-file }}
+        run: |
+          set -euo pipefail
+          test -f "$CONFIG_FILE" || { echo "ERROR: missing $CONFIG_FILE"; exit 1; }
+          test -f "$MANIFEST_FILE" || { echo "ERROR: missing $MANIFEST_FILE"; exit 1; }
+          python3 -m json.tool "$CONFIG_FILE" >/dev/null
+          python3 -m json.tool "$MANIFEST_FILE" >/dev/null
+          echo "release-please dry-run: config files are valid JSON."
+
+      - name: Run release-please
+        if: ${{ !inputs.dry-run }}
+        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+          target-branch: ${{ inputs.target-branch }}

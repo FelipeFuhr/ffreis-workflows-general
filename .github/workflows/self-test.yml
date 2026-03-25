@@ -12,24 +12,119 @@ permissions:
   security-events: write
 
 jobs:
+  workflows-policy:
+    uses: ./.github/workflows/general-workflows-policy.yml
+
   actionlint:
     uses: ./.github/workflows/general-actionlint.yml
     with:
-      working-directory: examples/hello
+      working-directory: .
 
   gitleaks:
     uses: ./.github/workflows/general-gitleaks.yml
     with:
-      working-directory: examples/hello
+      working-directory: .
       upload-sarif: true
+
+  osv-scanner:
+    uses: ./.github/workflows/general-osv-scanner.yml
+    with:
+      working-directory: .
+      upload-sarif: true
+
+  semantic-pr:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/general-semantic-pr.yml
+    with:
+      title: "feat: self-test"
+
+  labeler:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/general-labeler.yml
+    with:
+      dry-run: true
+      changed-files: |
+        examples/hello/index.js
+      rules-json: |-
+        [
+          {"label":"example","patterns":["examples/**"]},
+          {"label":"js","patterns":["**/*.js"]}
+        ]
 
   shellcheck:
     uses: ./.github/workflows/general-shellcheck.yml
     with:
-      working-directory: examples/hello
+      working-directory: .
+
+  pre-commit:
+    uses: ./.github/workflows/general-pre-commit.yml
+    with:
+      working-directory: .
+      require-config: false
+
+  stale:
+    uses: ./.github/workflows/general-stale.yml
+    with:
+      dry-run: true
+      stale-days: 1
+      close-days: 1
+
+  release-please:
+    uses: ./.github/workflows/general-release-please.yml
+    with:
+      dry-run: true
+      config-file: examples/hello/release-please-config.json
+      manifest-file: examples/hello/release-please-manifest.json
+
+  scorecard:
+    uses: ./.github/workflows/general-scorecard.yml
+    with:
+      upload-sarif: true
 
   codeql:
     uses: ./.github/workflows/general-codeql.yml
     with:
       languages: javascript
       source-root: examples/hello
+
+  trivy-fs:
+    uses: ./.github/workflows/general-scan-trivy-fs.yml
+    with:
+      scan-ref: examples/hello
+      upload-sarif: false
+
+  grype-fs:
+    uses: ./.github/workflows/general-scan-grype-fs.yml
+    with:
+      path: examples/hello
+      upload-sarif: false
+
+  run-commands:
+    uses: ./.github/workflows/general-run-commands.yml
+    with:
+      working-directory: examples/hello
+      timeout-minutes: 5
+      commands: |-
+        set -euo pipefail
+        test -f index.js
+        node --version >/dev/null
+
+  http-smoke:
+    uses: ./.github/workflows/general-http-smoke.yml
+    with:
+      base-url: "https://example.com"
+      paths: |-
+        /
+      timeout-seconds: 20
+
+  lefthook-minimal:
+    uses: ./.github/workflows/general-lefthook.yml
+    with:
+      working-directory: examples/hello
+      install-golangci-lint: false
+      install-gitleaks: false
+      stage-files: false
+      lefthook-bootstrap-command: "true"
+      run-pre-commit: false
+      run-commit-msg: false
+      run-pre-push: false

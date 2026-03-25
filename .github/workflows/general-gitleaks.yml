@@ -64,6 +64,14 @@ jobs:
         run: |
           set -euo pipefail
           cd "$WORKING_DIRECTORY"
+          if [[ -z "$CONFIG_PATH" && -f ".gitleaks.toml" ]]; then
+            if rg -n --fixed-strings '[[allowlist]]' .gitleaks.toml >/dev/null; then
+              echo "ERROR: .gitleaks.toml uses legacy '[[allowlist]]' (array) format."
+              echo "Gitleaks expects a single '[allowlist]' table (map)."
+              echo "Fix: merge the entries into one '[allowlist]' with combined 'regexes'/'paths'."
+              exit 1
+            fi
+          fi
           args=(detect --no-banner --redact --source . --report-format sarif --report-path "${GITHUB_WORKSPACE}/gitleaks.sarif")
           if [[ "$SCAN_HISTORY" != "true" ]]; then
             args+=(--no-git)

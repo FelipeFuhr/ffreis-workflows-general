@@ -1,0 +1,44 @@
+name: General / OSV-Scanner
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory to scan
+        required: false
+        type: string
+        default: .
+      upload-sarif:
+        description: Upload SARIF to GitHub code scanning
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  osv-scanner:
+    name: OSV-Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action/osv-scanner@764c91816374ff2d8fc2095dab36eecd42d61638 # v1.9.2
+        with:
+          scan-args: |-
+            --recursive
+            --format=sarif
+            --output=${{ github.workspace }}/osv-scanner.sarif
+            ${{ inputs.working-directory }}
+
+      - name: Upload SARIF
+        if: inputs.upload-sarif
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: osv-scanner.sarif
+          category: osv-scanner

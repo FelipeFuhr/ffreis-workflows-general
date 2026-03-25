@@ -1,0 +1,68 @@
+name: General / Semantic PR
+
+on:
+  workflow_call:
+    inputs:
+      title:
+        description: Optional PR title to validate (defaults to github.event.pull_request.title)
+        required: false
+        type: string
+        default: ""
+      types:
+        description: Comma-separated allowed types (Conventional Commits)
+        required: false
+        type: string
+        default: "feat,fix,chore,docs,refactor,test,perf,ci,build,revert,style"
+      require-scope:
+        description: "If true, require a scope: type(scope): subject"
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  semantic-pr:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate PR title
+        env:
+          TITLE: ${{ inputs.title }}
+          TYPES: ${{ inputs.types }}
+          REQUIRE_SCOPE: ${{ inputs.require-scope }}
+          EVENT_TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import sys
+          
+          title = os.environ.get("TITLE", "").strip() or os.environ.get("EVENT_TITLE", "").strip()
+          types = [t.strip() for t in os.environ.get("TYPES", "").split(",") if t.strip()]
+          require_scope = os.environ.get("REQUIRE_SCOPE", "false").lower() == "true"
+          
+          if not title:
+              print("ERROR: missing PR title (provide inputs.title or run on pull_request)", file=sys.stderr)
+              sys.exit(2)
+          if not types:
+              print("ERROR: inputs.types must not be empty", file=sys.stderr)
+              sys.exit(2)
+          
+          types_re = "|".join(re.escape(t) for t in types)
+          if require_scope:
+              pattern = rf"^({types_re})\\([^)]+\\)(!)?: .+"
+          else:
+              pattern = rf"^({types_re})(\\([^)]+\\))?(!)?: .+"
+          
+          if not re.match(pattern, title):
+              example = "feat(parser): add support for X" if require_scope else "feat: add support for X"
+              print("ERROR: PR title is not semantic (Conventional Commits).", file=sys.stderr)
+              print(f"Got: {title}", file=sys.stderr)
+              print(f"Expected: {example}", file=sys.stderr)
+              print(f"Allowed types: {', '.join(types)}", file=sys.stderr)
+              sys.exit(1)
+          
+          print(f"OK: semantic PR title: {title}")
+          PY
