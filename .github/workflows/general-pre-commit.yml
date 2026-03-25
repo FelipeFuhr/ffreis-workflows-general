@@ -1,0 +1,54 @@
+name: General / pre-commit
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory to run pre-commit in (repo-relative)
+        required: false
+        type: string
+        default: "."
+      pre-commit-version:
+        description: pre-commit version to install
+        required: false
+        type: string
+        default: "4.0.1"
+      require-config:
+        description: Fail if .pre-commit-config.yaml is missing
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  pre-commit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Run pre-commit
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          PRE_COMMIT_VERSION: ${{ inputs.pre-commit-version }}
+          REQUIRE_CONFIG: ${{ inputs.require-config }}
+        run: |
+          set -euo pipefail
+          cd "$WORKING_DIRECTORY"
+
+          if [[ ! -f .pre-commit-config.yaml ]]; then
+            if [[ "$REQUIRE_CONFIG" == "true" ]]; then
+              echo "ERROR: missing .pre-commit-config.yaml in $WORKING_DIRECTORY"
+              exit 1
+            fi
+            echo "No .pre-commit-config.yaml found in $WORKING_DIRECTORY; skipping."
+            exit 0
+          fi
+
+          python3 -m pip install --upgrade pip
+          python3 -m pip install "pre-commit==${PRE_COMMIT_VERSION}"
+          pre-commit --version
+          pre-commit run --all-files --show-diff-on-failure
+

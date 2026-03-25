@@ -1,0 +1,60 @@
+name: General / Grype Filesystem Scan
+
+on:
+  workflow_call:
+    inputs:
+      path:
+        description: "Directory to scan"
+        type: string
+        default: "."
+      severity:
+        description: "Minimum severity that causes a non-zero exit (negligible/low/medium/high/critical)"
+        type: string
+        default: "high"
+      upload-sarif:
+        description: "Upload SARIF to GitHub code scanning"
+        type: boolean
+        default: true
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  grype:
+    name: Grype (fs)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install Grype
+        run: |
+          set -euo pipefail
+          PINNED_COMMIT="dee8de483dfba5b4e0bc0aa8e4ab2ce52137e490"
+          SCRIPT_URL="https://raw.githubusercontent.com/anchore/grype/${PINNED_COMMIT}/install.sh"
+          mkdir -p ./bin
+          curl --fail --show-error --silent --location \
+            --proto '=https' --proto-redir '=https' \
+            "$SCRIPT_URL" -o /tmp/grype-install.sh
+          grep -q "grype" /tmp/grype-install.sh
+          sh /tmp/grype-install.sh -b ./bin
+          ./bin/grype version
+
+      - name: Run Grype (filesystem)
+        env:
+          SCAN_PATH: ${{ inputs.path }}
+          SEVERITY: ${{ inputs.severity }}
+        run: |
+          set -euo pipefail
+          ./bin/grype "dir:${SCAN_PATH}" \
+            -o sarif \
+            --file grype.sarif \
+            --fail-on "$SEVERITY"
+          test -s grype.sarif
+
+      - name: Upload SARIF
+        if: inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        uses: github/codeql-action/upload-sarif@ff0a06e83cb2de871e5a09832bc6a81e7276941f
+        with:
+          sarif_file: grype.sarif
+          category: grype-fs

@@ -1,0 +1,205 @@
+name: General / Run Commands
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Working directory (relative to repo root)"
+        type: string
+        default: "."
+
+      setup-go:
+        description: "Set up Go toolchain"
+        type: boolean
+        default: false
+      go-version:
+        description: "Go version (optional; overrides go-version-file)"
+        type: string
+        default: ""
+      go-version-file:
+        description: "Go version file (go.mod by default)"
+        type: string
+        default: "go.mod"
+
+      setup-python:
+        description: "Set up Python toolchain"
+        type: boolean
+        default: false
+      python-version:
+        description: "Python version"
+        type: string
+        default: "3.13"
+
+      setup-uv:
+        description: "Set up uv (requires setup-python)"
+        type: boolean
+        default: false
+      uv-cache:
+        description: "Enable uv cache"
+        type: boolean
+        default: true
+
+      setup-node:
+        description: "Set up Node.js toolchain"
+        type: boolean
+        default: false
+      node-version:
+        description: "Node.js version"
+        type: string
+        default: "20"
+
+      setup-rust:
+        description: "Set up Rust toolchain"
+        type: boolean
+        default: false
+      rust-toolchain:
+        description: "Rust toolchain (e.g. stable, 1.78.0)"
+        type: string
+        default: "stable"
+
+      commands:
+        description: "Newline-separated bash commands to run"
+        type: string
+        required: true
+
+      timeout-minutes:
+        description: "Job timeout"
+        type: number
+        default: 30
+
+      skip-if-glob-empty:
+        description: "Newline-separated globs; if none match, skip successfully"
+        type: string
+        default: ""
+
+      git-diff-check:
+        description: "Fail if git diff is non-empty after running commands"
+        type: boolean
+        default: false
+      git-diff-paths:
+        description: "Optional newline-separated paths passed to 'git diff -- <paths>'"
+        type: string
+        default: ""
+
+      artifact-name:
+        description: "Artifact name (optional)"
+        type: string
+        default: ""
+      artifact-path:
+        description: "Artifact path(s) (optional; newline-separated)"
+        type: string
+        default: ""
+
+permissions:
+  contents: read
+
+jobs:
+  run:
+    name: Run
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Skip if globs empty
+        id: skip
+        if: inputs.skip-if-glob-empty != ''
+        shell: bash
+        env:
+          GLOBS: ${{ inputs.skip-if-glob-empty }}
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          any=0
+          while IFS= read -r g; do
+            [[ -z "$g" ]] && continue
+            if compgen -G "$g" > /dev/null; then
+              any=1
+              break
+            fi
+          done <<< "$GLOBS"
+          if [[ "$any" -eq 0 ]]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "No files matched skip-if-glob-empty patterns; skipping."
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Setup Go
+        if: inputs.setup-go && (steps.skip.outputs.skip != 'true')
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && inputs.go-version-file || '' }}
+          cache: true
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Setup Python
+        if: inputs.setup-python && (steps.skip.outputs.skip != 'true')
+        uses: actions/setup-python@0ae0cb822b1ef0d0a29bac59a1e971f4a7e88a3d # v5
+        with:
+          python-version: ${{ inputs.python-version }}
+
+      - name: Setup uv
+        if: inputs.setup-uv && (steps.skip.outputs.skip != 'true')
+        uses: astral-sh/setup-uv@eac588ad8def6316056a12d4907a9d4d84ff7a3b
+        with:
+          enable-cache: ${{ inputs.uv-cache }}
+
+      - name: Setup Node.js
+        if: inputs.setup-node && (steps.skip.outputs.skip != 'true')
+        uses: actions/setup-node@60edb5dd545a775178f52524783378180af0d1f8 # v4
+        with:
+          node-version: ${{ inputs.node-version }}
+          cache: "npm"
+
+      - name: Setup Rust
+        if: inputs.setup-rust && (steps.skip.outputs.skip != 'true')
+        uses: dtolnay/rust-toolchain@e97e2d8cc328f1b50210efc529dca0028893a2d9
+        with:
+          toolchain: ${{ inputs.rust-toolchain }}
+
+      - name: Run commands
+        if: steps.skip.outputs.skip != 'true'
+        shell: bash
+        env:
+          COMMANDS: ${{ inputs.commands }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp)"
+          trap 'rm -f "$tmp"' EXIT
+          printf '%s\n' "$COMMANDS" > "$tmp"
+          bash "$tmp"
+
+      - name: Check git diff
+        if: inputs.git-diff-check && (steps.skip.outputs.skip != 'true')
+        shell: bash
+        env:
+          PATHS: ${{ inputs.git-diff-paths }}
+        run: |
+          set -euo pipefail
+          paths=()
+          if [[ -n "$PATHS" ]]; then
+            while IFS= read -r p; do
+              [[ -z "$p" ]] && continue
+              paths+=("$p")
+            done <<< "$PATHS"
+          fi
+          if [[ ${#paths[@]} -gt 0 ]]; then
+            git diff --exit-code -- "${paths[@]}"
+          else
+            git diff --exit-code
+          fi
+
+      - name: Upload artifact
+        if: inputs.artifact-name != '' && inputs.artifact-path != '' && (steps.skip.outputs.skip != 'true')
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: ${{ inputs.artifact-name }}
+          path: ${{ inputs.artifact-path }}
+          if-no-files-found: error

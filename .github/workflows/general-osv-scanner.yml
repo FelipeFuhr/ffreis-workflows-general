@@ -1,0 +1,44 @@
+name: General / OSV-Scanner
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory to scan
+        required: false
+        type: string
+        default: .
+      upload-sarif:
+        description: Upload SARIF to GitHub code scanning
+        required: false
+        type: boolean
+        default: false
+      fail-on-vuln:
+        description: Fail the workflow if vulnerabilities are found
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+jobs:
+  osv-scanner:
+    name: OSV-Scanner
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Run OSV-Scanner
+        uses: google/osv-scanner-action@764c91816374ff2d8fc2095dab36eecd42d61638 # v1.9.2
+        with:
+          scan-args: |-
+            --recursive
+            --skip-git=true
+            ${{ inputs.working-directory }}
+          results-file-name: osv-scanner.sarif
+          upload-sarif: ${{ inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
+          fail-on-vuln: ${{ inputs.fail-on-vuln }}

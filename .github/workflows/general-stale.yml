@@ -1,0 +1,173 @@
+name: General / Stale
+
+on:
+  workflow_call:
+    inputs:
+      stale-days:
+        description: Days of inactivity before marking stale
+        required: false
+        type: number
+        default: 60
+      close-days:
+        description: Days after being marked stale before closing
+        required: false
+        type: number
+        default: 7
+      only:
+        description: "What to process: issues, prs, or both"
+        required: false
+        type: string
+        default: "both"
+      stale-label:
+        description: Label to apply for stale items
+        required: false
+        type: string
+        default: "stale"
+      exempt-labels:
+        description: Comma-separated labels to exempt (e.g. pinned,security,never-stale)
+        required: false
+        type: string
+        default: "pinned,security,never-stale"
+      dry-run:
+        description: If true, prints actions without mutating issues/PRs
+        required: false
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  stale:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Mark stale / close
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          GH_API_URL: ${{ github.api_url }}
+          STALE_DAYS: ${{ inputs.stale-days }}
+          CLOSE_DAYS: ${{ inputs.close-days }}
+          ONLY: ${{ inputs.only }}
+          STALE_LABEL: ${{ inputs.stale-label }}
+          EXEMPT_LABELS: ${{ inputs.exempt-labels }}
+          DRY_RUN: ${{ inputs.dry-run }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import datetime as dt
+          import json
+          import os
+          import sys
+          import urllib.parse
+          import urllib.request
+          
+          gh_token = os.environ["GH_TOKEN"]
+          repo = os.environ["GH_REPO"]
+          api = os.environ["GH_API_URL"].rstrip("/")
+          
+          stale_days = int(float(os.environ.get("STALE_DAYS", "60")))
+          close_days = int(float(os.environ.get("CLOSE_DAYS", "7")))
+          only = (os.environ.get("ONLY", "both") or "both").strip().lower()
+          stale_label = (os.environ.get("STALE_LABEL", "stale") or "stale").strip()
+          exempt_labels = [x.strip() for x in (os.environ.get("EXEMPT_LABELS", "") or "").split(",") if x.strip()]
+          dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
+          
+          if only not in ("issues", "prs", "both"):
+              print("ERROR: inputs.only must be one of: issues, prs, both", file=sys.stderr)
+              sys.exit(2)
+          
+          today = dt.date.today()
+          stale_before = today - dt.timedelta(days=stale_days)
+          close_before = today - dt.timedelta(days=stale_days + close_days)
+          
+          def request_json(method: str, url: str, data=None):
+              body = None if data is None else json.dumps(data).encode("utf-8")
+              req = urllib.request.Request(
+                  url,
+                  method=method,
+                  data=body,
+                  headers={
+                      "Authorization": f"Bearer {gh_token}",
+                      "Accept": "application/vnd.github+json",
+                      "Content-Type": "application/json",
+                  },
+              )
+              with urllib.request.urlopen(req) as resp:
+                  if resp.status == 204:
+                      return None
+                  return json.load(resp)
+          
+          def search(q: str) -> list[dict]:
+              out: list[dict] = []
+              page = 1
+              while True:
+                  params = urllib.parse.urlencode({"q": q, "per_page": 100, "page": page})
+                  url = f"{api}/search/issues?{params}"
+                  data = request_json("GET", url)
+                  items = data.get("items", []) if isinstance(data, dict) else []
+                  out.extend(items)
+                  if len(items) < 100:
+                      break
+                  page += 1
+              return out
+          
+          def add_labels(number: int, labels: list[str]):
+              url = f"{api}/repos/{repo}/issues/{number}/labels"
+              request_json("POST", url, {"labels": labels})
+          
+          def close_issue(number: int):
+              url = f"{api}/repos/{repo}/issues/{number}"
+              request_json("PATCH", url, {"state": "closed"})
+          
+          def comment(number: int, body: str):
+              if not body.strip():
+                  return
+              url = f"{api}/repos/{repo}/issues/{number}/comments"
+              request_json("POST", url, {"body": body})
+          
+          def process(kind: str):
+              is_filter = "is:issue" if kind == "issues" else "is:pr"
+              exempt = " ".join([f"-label:{l}" for l in exempt_labels])
+              
+              to_stale_q = f"repo:{repo} {is_filter} is:open updated:<{stale_before.isoformat()} -label:{stale_label} {exempt}".strip()
+              to_close_q = f"repo:{repo} {is_filter} is:open updated:<{close_before.isoformat()} label:{stale_label} {exempt}".strip()
+              
+              to_stale = search(to_stale_q)
+              to_close = search(to_close_q)
+              
+              print(f"{kind}: mark stale candidates: {len(to_stale)}")
+              for item in to_stale:
+                  number = item.get("number")
+                  title = item.get("title", "")
+                  if not number:
+                      continue
+                  print(f"- stale #{number} {title}")
+                  if dry_run:
+                      continue
+                  add_labels(int(number), [stale_label])
+                  comment(int(number), "Marking as stale due to inactivity.")
+              
+              print(f"{kind}: close candidates: {len(to_close)}")
+              for item in to_close:
+                  number = item.get("number")
+                  title = item.get("title", "")
+                  if not number:
+                      continue
+                  print(f"- close #{number} {title}")
+                  if dry_run:
+                      continue
+                  comment(int(number), "Closing due to prolonged inactivity.")
+                  close_issue(int(number))
+          
+          targets = []
+          if only == "both":
+              targets = ["issues", "prs"]
+          else:
+              targets = [only]
+          
+          for t in targets:
+              process(t)
+          PY

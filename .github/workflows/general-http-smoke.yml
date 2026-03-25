@@ -1,0 +1,55 @@
+name: General / HTTP Smoke
+
+on:
+  workflow_call:
+    inputs:
+      base-url:
+        description: "Base URL (used if SMOKE_BASE_URL secret is not provided)"
+        type: string
+        default: ""
+      paths:
+        description: "Newline-separated paths to GET (e.g. /healthz)"
+        type: string
+        default: |-
+          /
+      timeout-seconds:
+        description: "curl timeout seconds"
+        type: number
+        default: 20
+    secrets:
+      SMOKE_BASE_URL:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  smoke:
+    name: Smoke
+    runs-on: ubuntu-latest
+    steps:
+      - name: Smoke checks
+        shell: bash
+        env:
+          BASE_SECRET: ${{ secrets.SMOKE_BASE_URL }}
+          BASE_INPUT: ${{ inputs.base-url }}
+          PATHS: ${{ inputs.paths }}
+          TIMEOUT: ${{ inputs.timeout-seconds }}
+        run: |
+          set -euo pipefail
+          base=""
+          if [[ -n "$BASE_SECRET" ]]; then
+            base="$BASE_SECRET"
+          elif [[ -n "$BASE_INPUT" ]]; then
+            base="$BASE_INPUT"
+          fi
+          [[ -n "$base" ]] || (echo "Missing base URL (set SMOKE_BASE_URL secret or inputs.base-url)" >&2; exit 1)
+          while IFS= read -r p; do
+            [[ -z "$p" ]] && continue
+            if [[ "$p" != /* ]]; then
+              p="/$p"
+            fi
+            url="${base%/}${p}"
+            echo "GET $url"
+            curl -fsS --max-time "$TIMEOUT" "$url" >/dev/null
+          done <<< "$PATHS"
