@@ -127,14 +127,14 @@ jobs:
           
           if not labels:
               print("No labels matched; nothing to do.")
-              return
+              sys.exit(0)
           
           labels_sorted = sorted(labels)
           print(f"Matched labels: {', '.join(labels_sorted)}")
           
           if dry_run:
               print("Dry-run enabled; skipping label application.")
-              return
+              sys.exit(0)
           
           payload = json.dumps({"labels": labels_sorted}).encode("utf-8")
           url = f"{gh_api}/repos/{gh_repo}/issues/{pr_number}/labels"

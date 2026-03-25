@@ -122,11 +122,11 @@ jobs:
                   # For now, treat non-branch, non-SHA refs as warnings so repos can adopt this incrementally.
                   add_warn(path, i, f"Unpinned action ref (recommend full SHA): {full}", val)
           
-          # 3) No GitHub expression interpolation inside run: scripts
-          expr_token = "${" + "{"
-          i = 0
-          while i < len(lines):
-            line = lines[i]
+              # 3) No GitHub expression interpolation inside run: scripts
+              expr_token = "${" + "{"
+              i = 0
+              while i < len(lines):
+                  line = lines[i]
                   m_block = block_run_start_re.match(line)
                   if m_block:
                       run_indent = len(line) - len(line.lstrip())
