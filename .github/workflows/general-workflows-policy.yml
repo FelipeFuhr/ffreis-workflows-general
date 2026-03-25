@@ -18,7 +18,7 @@ on:
             "actions/github-script@v6",
             "aquasecurity/tfsec-action@v1.0.3",
             "aws-actions/configure-aws-credentials@v4",
-            "google/osv-scanner-action/osv-scanner@v1",
+            "google/osv-scanner-action@v1",
             "googleapis/release-please-action@v4",
             "golang/govulncheck-action@v1",
             "hashicorp/setup-terraform@v3",
@@ -99,22 +99,27 @@ jobs:
           
               # 2) uses: pinned, no branch refs
               for i, line in enumerate(lines, start=1):
-                  m = uses_re.match(line)
-                  if not m:
-                      continue
-                  val = m.group(1).strip().strip("\"'")
-                  if val.startswith("./") or val.startswith("docker://"):
-                      continue
-                  if "@" not in val:
-                      add_warn(path, i, "uses: without @ref (cannot verify pinning)", val)
-                      continue
-                  action, ref = val.rsplit("@", 1)
-                  full = f"{action}@{ref}"
-                  if branch_ref_re.match(ref):
-                      add_err(path, i, f"Forbidden: branch ref in uses: ({ref})", val)
-                      continue
-                  if sha_re.match(ref):
-                      continue
+                m = uses_re.match(line)
+                if not m:
+                  continue
+                val = m.group(1).strip().strip("\"'")
+                if val.startswith("./") or val.startswith("docker://"):
+                  continue
+                if "@" not in val:
+                  add_warn(path, i, "uses: without @ref (cannot verify pinning)", val)
+                  continue
+                action, ref = val.rsplit("@", 1)
+                full = f"{action}@{ref}"
+                if branch_ref_re.match(ref):
+                    # Allow org-local reusable workflows to use @main while they iterate.
+                    # Prefer tagging or pinning to a SHA for immutable builds.
+                    if action.startswith("FelipeFuhr/ffreis-workflows-general/.github/workflows/") and ref == "main":
+                        add_warn(path, i, f"Allowed branch ref for org workflow: {full}", val)
+                        continue
+                    add_err(path, i, f"Forbidden: branch ref in uses: ({ref})", val)
+                    continue
+                if sha_re.match(ref):
+                  continue
                   if full in allowed_unpinned:
                       add_warn(path, i, f"Allowed unpinned action ref: {full}", val)
                       continue

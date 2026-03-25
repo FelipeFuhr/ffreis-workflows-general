@@ -84,8 +84,8 @@ jobs:
   codeql:
     uses: ./.github/workflows/general-codeql.yml
     with:
-      languages: javascript
-      source-root: examples/hello
+      languages: actions
+      source-root: .github/workflows
 
   trivy-fs:
     uses: ./.github/workflows/general-scan-trivy-fs.yml
@@ -124,7 +124,7 @@ jobs:
       install-golangci-lint: false
       install-gitleaks: false
       stage-files: false
-      lefthook-bootstrap-command: "true"
+      lefthook-bootstrap-command: ":"
       run-pre-commit: false
       run-commit-msg: false
       run-pre-push: false

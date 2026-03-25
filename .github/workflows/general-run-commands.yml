@@ -118,8 +118,7 @@ jobs:
           any=0
           while IFS= read -r g; do
             [[ -z "$g" ]] && continue
-            matches=( $g )
-            if [[ ${#matches[@]} -gt 0 ]]; then
+            if compgen -G "$g" > /dev/null; then
               any=1
               break
             fi
