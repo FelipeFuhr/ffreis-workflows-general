@@ -46,132 +46,140 @@ jobs:
         run: |
           set -euo pipefail
           python3 - <<'PY'
-          import glob
-          import json
-          import os
-          import re
-          import sys
-          
-          workflows_glob = os.environ.get("WORKFLOWS_GLOB", ".github/workflows/*.yml")
-          allow_json = os.environ.get("ALLOWED_UNPINNED_ACTIONS", "[]")
-          
-          try:
-              allowed_unpinned = set(json.loads(allow_json))
-          except Exception as e:
-              print(f"ERROR: inputs.allowed-unpinned-actions must be valid JSON array: {e}", file=sys.stderr)
-              sys.exit(2)
-          
-          uses_re = re.compile(r"^\\s*uses:\\s*([^\\s#]+)")
-          secrets_inherit_re = re.compile(r"^\\s*secrets:\\s*inherit\\s*$")
-          
-          # run: | / run: > block detection
-          block_run_start_re = re.compile(r"^\\s*run:\\s*([>|][+-]?)\\s*$")
-          inline_run_re = re.compile(r"^\\s*run:\\s*(.+?)\\s*$")
-          
-          branch_ref_re = re.compile(r"^(main|master|HEAD|refs/heads/.+)$")
-          sha_re = re.compile(r"^[0-9a-f]{40}$")
-          
-          def iter_workflow_files(pattern: str):
-              for p in sorted(glob.glob(pattern, recursive=True)):
-                  if os.path.isdir(p):
-                      continue
-                  yield p
-          
-          errors = []
-          warnings = []
-          
-          def add_err(path, lineno, msg, line=""):
-              errors.append((path, lineno, msg, line))
-          
-          def add_warn(path, lineno, msg, line=""):
-              warnings.append((path, lineno, msg, line))
-          
-          def scan_file(path: str):
-              try:
-                  lines = open(path, "r", encoding="utf-8", errors="ignore").read().splitlines()
-              except FileNotFoundError:
-                  return
-          
-              # 1) No secrets: inherit
-              for i, line in enumerate(lines, start=1):
-                  if secrets_inherit_re.match(line):
-                      add_err(path, i, "Forbidden: secrets: inherit", line.strip())
-          
-              # 2) uses: pinned, no branch refs
-              for i, line in enumerate(lines, start=1):
-                m = uses_re.match(line)
-                if not m:
-                  continue
-                val = m.group(1).strip().strip("\"'")
-                if val.startswith("./") or val.startswith("docker://"):
-                  continue
-                if "@" not in val:
-                  add_warn(path, i, "uses: without @ref (cannot verify pinning)", val)
-                  continue
-                action, ref = val.rsplit("@", 1)
-                full = f"{action}@{ref}"
-                if branch_ref_re.match(ref):
-                    # Allow org-local reusable workflows to use @main while they iterate.
-                    # Prefer tagging or pinning to a SHA for immutable builds.
-                    if action.startswith("FelipeFuhr/ffreis-workflows-general/.github/workflows/") and ref == "main":
-                        add_warn(path, i, f"Allowed branch ref for org workflow: {full}", val)
-                        continue
-                    add_err(path, i, f"Forbidden: branch ref in uses: ({ref})", val)
-                    continue
-                if sha_re.match(ref):
-                  continue
-                  if full in allowed_unpinned:
-                      add_warn(path, i, f"Allowed unpinned action ref: {full}", val)
-                      continue
-                  # Prefer pinning third-party actions to a full commit SHA.
-                  # For now, treat non-branch, non-SHA refs as warnings so repos can adopt this incrementally.
-                  add_warn(path, i, f"Unpinned action ref (recommend full SHA): {full}", val)
-          
-          # 3) No GitHub expression interpolation inside run: scripts
-          expr_token = "${" + "{"
-          i = 0
-          while i < len(lines):
-            line = lines[i]
-                  m_block = block_run_start_re.match(line)
-                  if m_block:
-                      run_indent = len(line) - len(line.lstrip())
-                      i += 1
-                      while i < len(lines):
-                          l = lines[i]
-                          if l.strip() and (len(l) - len(l.lstrip())) <= run_indent:
-                              break
-                          if expr_token in l:
-                              add_err(path, i + 1, "Forbidden: expression token inside run: block (shell injection risk)", l.strip())
-                          i += 1
-                      continue
-                  m_inline = inline_run_re.match(line)
-                  if m_inline:
-                      after = m_inline.group(1)
-                      if not after.startswith("|") and not after.startswith(">"):
-                          if expr_token in after:
-                              add_err(path, i + 1, "Forbidden: expression token inside run: (shell injection risk)", line.strip())
-                  i += 1
-          
-          files = list(iter_workflow_files(workflows_glob))
-          if not files:
-              add_err(workflows_glob, 0, "No workflow files found for workflows-glob", workflows_glob)
-              return
-          
-          for f in files:
-              scan_file(f)
-          
-          if warnings:
-              print("WARNINGS:")
-              for path, lineno, msg, line in warnings:
-                  loc = f"{path}:{lineno}" if lineno else path
-                  print(f"- {loc}: {msg} :: {line}")
-          
-          if errors:
-              print("ERRORS:", file=sys.stderr)
-              for path, lineno, msg, line in errors:
-                  loc = f"{path}:{lineno}" if lineno else path
-                  print(f"- {loc}: {msg} :: {line}", file=sys.stderr)
-              sys.exit(1)
-          
-          print("OK: workflows policy checks passed.")
+import glob
+import json
+import os
+import re
+import sys
+
+workflows_glob = os.environ.get("WORKFLOWS_GLOB", ".github/workflows/*.yml")
+allow_json = os.environ.get("ALLOWED_UNPINNED_ACTIONS", "[]")
+
+try:
+    allowed_unpinned = set(json.loads(allow_json))
+except Exception as e:
+    print(f"ERROR: inputs.allowed-unpinned-actions must be valid JSON array: {e}", file=sys.stderr)
+    sys.exit(2)
+
+uses_re = re.compile(r"^\\s*uses:\\s*([^\\s#]+)")
+secrets_inherit_re = re.compile(r"^\\s*secrets:\\s*inherit\\s*$")
+
+# run: | / run: > block detection
+block_run_start_re = re.compile(r"^\\s*run:\\s*([>|][+-]?)\\s*$")
+inline_run_re = re.compile(r"^\\s*run:\\s*(.+?)\\s*$")
+
+branch_ref_re = re.compile(r"^(main|master|HEAD|refs/heads/.+)$")
+sha_re = re.compile(r"^[0-9a-f]{40}$")
+
+errors: list[tuple[str, int, str, str]] = []
+warnings: list[tuple[str, int, str, str]] = []
+
+
+def add_err(path: str, lineno: int, msg: str, line: str = "") -> None:
+    errors.append((path, lineno, msg, line))
+
+
+def add_warn(path: str, lineno: int, msg: str, line: str = "") -> None:
+    warnings.append((path, lineno, msg, line))
+
+
+def iter_workflow_files(pattern: str):
+    for p in sorted(glob.glob(pattern, recursive=True)):
+        if os.path.isdir(p):
+            continue
+        yield p
+
+
+def scan_file(path: str) -> None:
+    try:
+        lines = open(path, "r", encoding="utf-8", errors="ignore").read().splitlines()
+    except FileNotFoundError:
+        return
+
+    # 1) No secrets: inherit
+    for i, line in enumerate(lines, start=1):
+        if secrets_inherit_re.match(line):
+            add_err(path, i, "Forbidden: secrets: inherit", line.strip())
+
+    # 2) uses: pinned, no branch refs
+    for i, line in enumerate(lines, start=1):
+        m = uses_re.match(line)
+        if not m:
+            continue
+        val = m.group(1).strip().strip("\"'")
+        if val.startswith("./") or val.startswith("docker://"):
+            continue
+        if "@" not in val:
+            add_warn(path, i, "uses: without @ref (cannot verify pinning)", val)
+            continue
+        action, ref = val.rsplit("@", 1)
+        full = f"{action}@{ref}"
+        if branch_ref_re.match(ref):
+            # Allow org-local reusable workflows to use @main while they iterate.
+            # Prefer tagging or pinning to a SHA for immutable builds.
+            if action.startswith("FelipeFuhr/ffreis-workflows-general/.github/workflows/") and ref == "main":
+                add_warn(path, i, f"Allowed branch ref for org workflow: {full}", val)
+                continue
+            add_err(path, i, f"Forbidden: branch ref in uses: ({ref})", val)
+            continue
+        if sha_re.match(ref):
+            continue
+        if full in allowed_unpinned:
+            add_warn(path, i, f"Allowed unpinned action ref: {full}", val)
+            continue
+        add_warn(path, i, f"Unpinned action ref (recommend full SHA): {full}", val)
+
+    # 3) No GitHub expression interpolation inside run: scripts
+    expr_token = "${" + "{"
+    idx = 0
+    while idx < len(lines):
+        line = lines[idx]
+        m_block = block_run_start_re.match(line)
+        if m_block:
+            run_indent = len(line) - len(line.lstrip())
+            idx += 1
+            while idx < len(lines):
+                l = lines[idx]
+                if l.strip() and (len(l) - len(l.lstrip())) <= run_indent:
+                    break
+                if expr_token in l:
+                    add_err(
+                        path,
+                        idx + 1,
+                        "Forbidden: expression token inside run: block (shell injection risk)",
+                        l.strip(),
+                    )
+                idx += 1
+            continue
+
+        m_inline = inline_run_re.match(line)
+        if m_inline:
+            after = m_inline.group(1).strip()
+            if not after.startswith("|") and not after.startswith(">"):
+                if expr_token in after:
+                    add_err(path, idx + 1, "Forbidden: expression token inside run: (shell injection risk)", line.strip())
+        idx += 1
+
+
+files = list(iter_workflow_files(workflows_glob))
+if not files:
+    add_err(workflows_glob, 0, "No workflow files found for workflows-glob", workflows_glob)
+
+for f in files:
+    scan_file(f)
+
+if warnings:
+    print("WARNINGS:")
+    for path, lineno, msg, line in warnings:
+        loc = f"{path}:{lineno}" if lineno else path
+        print(f"- {loc}: {msg} :: {line}")
+
+if errors:
+    print("ERRORS:", file=sys.stderr)
+    for path, lineno, msg, line in errors:
+        loc = f"{path}:{lineno}" if lineno else path
+        print(f"- {loc}: {msg} :: {line}", file=sys.stderr)
+    sys.exit(1)
+
+print("OK: workflows policy checks passed.")
           PY
