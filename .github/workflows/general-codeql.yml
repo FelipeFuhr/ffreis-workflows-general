@@ -40,34 +40,49 @@ jobs:
       - name: Checkout
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 
-      - name: Initialize CodeQL
+      - name: Resolve CodeQL settings
+        id: vars
         env:
           LANGUAGES: ${{ inputs.languages }}
           SOURCE_ROOT: ${{ inputs.source-root }}
           QUERY_SUITE: ${{ inputs.query-suite }}
         run: |
           set -euo pipefail
-          echo "languages=$LANGUAGES"
-          echo "source_root=$SOURCE_ROOT"
-          echo "query_suite=$QUERY_SUITE"
+
+          resolved_source_root="$SOURCE_ROOT"
+          resolved_languages="$(echo "$LANGUAGES" | tr -d ' ')"
+
+          # For `language: actions`, CodeQL expects to find workflows under `.github/workflows/`
+          # relative to the repo root. Using `source-root: .github/workflows` can result in
+          # "no source code seen during build" because the extractor no longer sees the
+          # standard workflow path.
+          if [[ "$resolved_languages" == "actions" ]]; then
+            resolved_source_root="."
+          fi
+
+          {
+            echo "languages=$resolved_languages"
+            echo "source_root=$resolved_source_root"
+            echo "query_suite=$QUERY_SUITE"
+          } >> "$GITHUB_OUTPUT"
 
       - name: CodeQL init (default queries)
         if: inputs.query-suite == ''
         uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
-          languages: ${{ inputs.languages }}
-          source-root: ${{ inputs.source-root }}
+          languages: ${{ steps.vars.outputs.languages }}
+          source-root: ${{ steps.vars.outputs.source_root }}
 
       - name: CodeQL init (custom queries)
         if: inputs.query-suite != ''
         uses: github/codeql-action/init@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
-          languages: ${{ inputs.languages }}
-          source-root: ${{ inputs.source-root }}
-          queries: ${{ inputs.query-suite }}
+          languages: ${{ steps.vars.outputs.languages }}
+          source-root: ${{ steps.vars.outputs.source_root }}
+          queries: ${{ steps.vars.outputs.query_suite }}
 
       - name: Autobuild
-        if: inputs.build-command == ''
+        if: inputs.build-command == '' && steps.vars.outputs.languages != 'actions'
         uses: github/codeql-action/autobuild@ff0a06e83cb2de871e5a09832bc6a81e7276941f
 
       - name: Build (manual)
@@ -81,4 +96,4 @@ jobs:
       - name: CodeQL analyze
         uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
-          category: "/language:${{ inputs.languages }}"
+          category: "/language:${{ steps.vars.outputs.languages }}"
