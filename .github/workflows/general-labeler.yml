@@ -156,9 +156,19 @@ jobs:
                   try:
                       api_request("POST", f"/repos/{repo}/labels", {"name": l, "color": label_color(l)})
                   except urllib.error.HTTPError as e:
+                      code = getattr(e, "code", None)
                       # If created concurrently or already exists, ignore.
-                      if getattr(e, "code", None) in (409, 422):
+                      if code in (409,):
                           continue
+                      # GitHub sometimes uses 422 for "already exists"; if so, ignore.
+                      if code == 422:
+                          try:
+                              existing_now = list_repo_labels(repo)
+                              if l in existing_now:
+                                  continue
+                          except Exception:
+                              pass
+                          raise
                       raise
           
           if changed_files_raw.strip():
@@ -200,7 +210,46 @@ jobs:
               print("Dry-run enabled; skipping label application.")
               sys.exit(0)
           
-          ensure_labels_exist(gh_repo, labels_sorted)
-          api_request("POST", f"/repos/{gh_repo}/issues/{pr_number}/labels", {"labels": labels_sorted})
-          print("Labels applied.")
+          # Create missing labels, then apply with retry (labels can be eventually consistent).
+          attempts = 5
+          delay_s = 0.2
+          last_err = None
+          for attempt in range(1, attempts + 1):
+              try:
+                  ensure_labels_exist(gh_repo, labels_sorted)
+                  api_request("POST", f"/repos/{gh_repo}/issues/{pr_number}/labels", {"labels": labels_sorted})
+                  print("Labels applied.")
+                  sys.exit(0)
+              except urllib.error.HTTPError as e:
+                  if getattr(e, "code", None) != 422:
+                      raise
+                  last_err = e
+                  # Try to parse which labels were invalid, create them, and retry.
+                  try:
+                      body = e.read().decode("utf-8", errors="ignore")
+                      data = json.loads(body) if body else {}
+                      invalid = [
+                          err.get("value")
+                          for err in (data.get("errors") or [])
+                          if err.get("resource") == "Label" and err.get("field") == "name" and err.get("code") == "invalid"
+                      ]
+                      invalid = [v for v in invalid if isinstance(v, str) and v]
+                      if invalid:
+                          print(f"Retry {attempt}/{attempts}: creating invalid/missing labels: {', '.join(invalid)}")
+                          ensure_labels_exist(gh_repo, invalid)
+                  except Exception:
+                      pass
+                  if attempt < attempts:
+                      print(f"Retry {attempt}/{attempts}: label apply returned 422; sleeping {delay_s:.1f}s")
+                      try:
+                          import time
+                          time.sleep(delay_s)
+                      except Exception:
+                          pass
+                      delay_s *= 2
+                      continue
+                  raise
+
+          if last_err is not None:
+              raise last_err
           PY
