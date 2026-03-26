@@ -86,6 +86,7 @@ jobs:
     with:
       languages: actions
       source-root: .github/workflows
+      upload-sarif: false
 
   trivy-fs:
     uses: ./.github/workflows/general-scan-trivy-fs.yml

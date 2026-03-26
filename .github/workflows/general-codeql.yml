@@ -22,6 +22,11 @@ on:
         required: false
         type: string
         default: ""
+      upload-sarif:
+        description: Upload SARIF to GitHub code scanning
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   actions: read
@@ -97,3 +102,4 @@ jobs:
         uses: github/codeql-action/analyze@ff0a06e83cb2de871e5a09832bc6a81e7276941f
         with:
           category: "/language:${{ steps.vars.outputs.languages }}"
+          upload: ${{ inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
