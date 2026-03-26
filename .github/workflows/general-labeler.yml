@@ -104,6 +104,12 @@ jobs:
                       body = e.read().decode("utf-8", errors="ignore")
                   except Exception:
                       body = ""
+                  # Preserve the response body for callers that want to parse it
+                  # (HTTPError is a file-like object whose body can only be read once).
+                  try:
+                      setattr(e, "_body", body)
+                  except Exception:
+                      pass
                   print(f"GitHub API error: {method} {path} -> HTTP {e.code}", file=sys.stderr)
                   if body:
                       print(body, file=sys.stderr)
@@ -226,7 +232,7 @@ jobs:
                   last_err = e
                   # Try to parse which labels were invalid, create them, and retry.
                   try:
-                      body = e.read().decode("utf-8", errors="ignore")
+                      body = getattr(e, "_body", "") or ""
                       data = json.loads(body) if body else {}
                       invalid = [
                           err.get("value")
