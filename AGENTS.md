@@ -18,6 +18,13 @@ A workflow that is not exercised by `self-test.yml` is unverified. It will not b
 declare it as `required: true` in the workflow. In `self-test.yml`, gate the entire job
 so it is explicitly skipped on fork PRs (where secrets are unavailable).
 
+**Exception: DevOps entrypoint workflows** — files named `devops-*.yml` are
+consumer/entrypoint workflows that compose reusable library workflows. They are triggered
+by repository events (`push`, `pull_request`, `schedule`) and are **not** required to be
+called from `self-test.yml`. Their constituent reusable workflows are each individually
+verified by `self-test.yml`. New `devops-*.yml` files must call only `general-*.yml`
+reusable workflows already covered by `self-test.yml`.
+
 ---
 
 ### 2. No silent failures
