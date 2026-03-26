@@ -11,6 +11,10 @@ on:
         description: "Minimum severity that causes a non-zero exit (negligible/low/medium/high/critical)"
         type: string
         default: "high"
+      fail-on-vuln:
+        description: "If true, fail the workflow when vulnerabilities are found at or above severity"
+        type: boolean
+        default: false
       upload-sarif:
         description: "Upload SARIF to GitHub code scanning"
         type: boolean
@@ -44,13 +48,23 @@ jobs:
         env:
           SCAN_PATH: ${{ inputs.path }}
           SEVERITY: ${{ inputs.severity }}
+          FAIL_ON_VULN: ${{ inputs.fail-on-vuln }}
         run: |
           set -euo pipefail
+          set +e
           ./bin/grype "dir:${SCAN_PATH}" \
             -o sarif \
             --file grype.sarif \
             --fail-on "$SEVERITY"
+          exit_code="$?"
+          set -e
           test -s grype.sarif
+          if [[ "$exit_code" -ne 0 ]]; then
+            if [[ "$FAIL_ON_VULN" == "true" ]]; then
+              exit "$exit_code"
+            fi
+            echo "::warning::Grype found vulnerabilities (exit=$exit_code) but fail-on-vuln=false; continuing."
+          fi
 
       - name: Upload SARIF
         if: inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
