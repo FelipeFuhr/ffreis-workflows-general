@@ -3,8 +3,6 @@ name: DevOps / PR Hygiene
 on:
   pull_request:
     types: [opened, edited, synchronize, reopened]
-  pull_request_target:
-    types: [opened, synchronize, reopened]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -15,7 +13,6 @@ permissions:
 
 jobs:
   semantic-pr:
-    if: github.event_name == 'pull_request'
     permissions:
       contents: read
     uses: ./.github/workflows/general-semantic-pr.yml
@@ -23,26 +20,8 @@ jobs:
       require-scope: false
 
   actionlint:
-    if: github.event_name == 'pull_request'
     permissions:
       contents: read
     uses: ./.github/workflows/general-actionlint.yml
     with:
       working-directory: "."
-
-  labeler:
-    if: github.event_name == 'pull_request_target'
-    permissions:
-      contents: read
-      pull-requests: write
-      issues: write
-    uses: ./.github/workflows/general-labeler.yml
-    with:
-      rules-json: |-
-        [
-          {"label":"ci","patterns":[".github/workflows/**",".github/actions/**"]},
-          {"label":"security","patterns":[".gitleaks.toml",".trivyignore*",".github/dependabot.yml"]},
-          {"label":"scripts","patterns":["scripts/**","Makefile","lefthook.yml"]},
-          {"label":"docs","patterns":["**/*.md"]}
-        ]
-
