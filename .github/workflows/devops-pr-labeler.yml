@@ -1,0 +1,28 @@
+name: DevOps / PR Labeler
+
+on:
+  pull_request_target:
+    types: [opened, edited, synchronize, reopened]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  labeler:
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    uses: ./.github/workflows/general-labeler.yml
+    with:
+      rules-json: |-
+        [
+          {"label":"ci","patterns":[".github/workflows/**",".github/actions/**"]},
+          {"label":"security","patterns":[".gitleaks.toml",".trivyignore*",".github/dependabot.yml"]},
+          {"label":"scripts","patterns":["scripts/**","Makefile","lefthook.yml"]},
+          {"label":"docs","patterns":["**/*.md"]}
+        ]
