@@ -1,0 +1,213 @@
+name: General Code Quality (Go + Shell)
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Directory to run checks in"
+        required: false
+        type: string
+        default: "."
+      enable-go:
+        description: "Enable Go checks (requires go.mod in working-directory)"
+        required: false
+        type: boolean
+        default: true
+      enable-shell:
+        description: "Enable shell checks"
+        required: false
+        type: boolean
+        default: true
+      cognitive-complexity-threshold:
+        description: "Max allowed cognitive complexity"
+        required: false
+        type: number
+        default: 15
+      golangci-lint-version:
+        description: "golangci-lint version"
+        required: false
+        type: string
+        default: "v1.64.8"
+      shfmt-version:
+        description: "shfmt version (tag)"
+        required: false
+        type: string
+        default: "v3.8.0"
+
+permissions:
+  contents: read
+
+jobs:
+  go:
+    if: inputs.enable-go
+    name: Go (gofmt + complexity + golangci-lint + test)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      WORKING_DIRECTORY: ${{ inputs.working-directory }}
+      COMPLEXITY_THRESHOLD: ${{ inputs.cognitive-complexity-threshold }}
+      GOLANGCI_LINT_VERSION: ${{ inputs.golangci-lint-version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Detect go.mod
+        id: go_mod
+        run: |-
+          set -euo pipefail
+
+          if [[ -f "go.mod" ]]; then
+            echo "found=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          echo "found=false" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        if: steps.go_mod.outputs.found == 'true'
+        with:
+          go-version-file: ${{ inputs.working-directory }}/go.mod
+          cache: true
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: gofmt (autofix)
+        if: steps.go_mod.outputs.found == 'true'
+        run: |-
+          set -euo pipefail
+
+          gofmt -w .
+
+          if ! git diff --quiet; then
+            git diff > "$RUNNER_TEMP/code-quality.patch"
+            echo "::error title=gofmt required::Run gofmt and commit the changes."
+            exit 1
+          fi
+
+      - name: Upload patch (gofmt)
+        if: failure() && steps.go_mod.outputs.found == 'true'
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: code-quality-gofmt.patch
+          path: ${{ runner.temp }}/code-quality.patch
+
+      - name: Cognitive complexity gate (gocognit)
+        if: steps.go_mod.outputs.found == 'true'
+        run: |-
+          set -euo pipefail
+
+          go run github.com/uudashr/gocognit/cmd/gocognit@v1.2.1 \
+            -over "$COMPLEXITY_THRESHOLD" \
+            -test \
+            -ignore '(/vendor/|/generated/)' \
+            .
+
+      - name: golangci-lint
+        if: steps.go_mod.outputs.found == 'true'
+        uses: golangci/golangci-lint-action@9fae48acfc02a90574d7c304a1758ef9895495fa # v7
+        with:
+          install-mode: goinstall
+          version: ${{ env.GOLANGCI_LINT_VERSION }}
+          args: --timeout=5m
+          working-directory: ${{ inputs.working-directory }}
+
+      - name: go test
+        if: steps.go_mod.outputs.found == 'true'
+        run: go test ./... -count=1
+
+  shell:
+    if: inputs.enable-shell
+    name: Shell (shfmt + shellcheck + safety gate)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+    env:
+      SHFMT_VERSION: ${{ inputs.shfmt-version }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      - name: Install shellcheck
+        run: |-
+          set -euo pipefail
+
+          sudo apt-get update
+          sudo apt-get install -y shellcheck
+
+      - name: Install shfmt
+        run: |-
+          set -euo pipefail
+
+          shfmt_path="$RUNNER_TEMP/shfmt"
+          shfmt_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION#v}_linux_amd64"
+          curl -fsSL "$shfmt_url" -o "$shfmt_path"
+          chmod +x "$shfmt_path"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: shfmt (autofix)
+        run: |-
+          set -euo pipefail
+
+          mapfile -d '' files < <(git ls-files -z '*.sh' || true)
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            exit 0
+          fi
+
+          shfmt -w -i 2 -ci -sr "${files[@]}"
+
+          if ! git diff --quiet; then
+            git diff > "$RUNNER_TEMP/code-quality.patch"
+            echo "::error title=shfmt required::Run shfmt and commit the changes."
+            exit 1
+          fi
+
+      - name: Upload patch (shfmt)
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: code-quality-shfmt.patch
+          path: ${{ runner.temp }}/code-quality.patch
+
+      - name: Unsafe bash patterns gate
+        run: |-
+          set -euo pipefail
+
+          mapfile -d '' files < <(git ls-files -z '*.sh' || true)
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            exit 0
+          fi
+
+          bad=0
+          for f in "${files[@]}"; do
+            if ! head -n 1 "$f" | grep -Eq '^#!.*\bbash\b'; then
+              continue
+            fi
+
+            header="$(head -n 20 "$f")"
+            if ! grep -Fqx 'set -euo pipefail' <<<"$header"; then
+              echo "::error title=Unsafe bash::Missing 'set -euo pipefail' in $f"
+              bad=1
+            fi
+            if grep -Eq '(^|[[:space:]])case[[:space:]]' "$f"; then
+              if ! grep -Eq '^[[:space:]]*\\*\\)' "$f"; then
+                printf '%s\n' "::error title=Unsafe bash::case without default (missing '*)') in $f"
+                bad=1
+              fi
+            fi
+          done
+
+          if [[ "$bad" -ne 0 ]]; then
+            exit 1
+          fi
+
+      - name: shellcheck
+        run: |-
+          set -euo pipefail
+
+          mapfile -d '' files < <(git ls-files -z '*.sh' || true)
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            exit 0
+          fi
+
+          shellcheck -x "${files[@]}"
+

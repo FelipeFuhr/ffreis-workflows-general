@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+IFS=$'\n\t'
 
 msg_file="${1:-}"
 if [[ -z "$msg_file" || ! -f "$msg_file" ]]; then

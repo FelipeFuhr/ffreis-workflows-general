@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+IFS=$'\n\t'
 
 max_bytes="${MAX_BYTES:-1048576}" # 1 MiB
 
