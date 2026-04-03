@@ -56,6 +56,13 @@ jobs:
     with:
       working-directory: .
 
+  code-quality:
+    uses: ./.github/workflows/general-code-quality.yml
+    with:
+      working-directory: examples/hello
+      enable-go: false
+      enable-shell: true
+
   pre-commit:
     uses: ./.github/workflows/general-pre-commit.yml
     with:

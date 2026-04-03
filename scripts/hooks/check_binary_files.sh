@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
+IFS=$'\n\t'
 
 while IFS= read -r -d '' file; do
   if [ -f "$file" ] && file --mime "$file" | rg -q 'charset=binary'; then
