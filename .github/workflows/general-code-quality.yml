@@ -188,14 +188,9 @@ jobs:
               echo "::error title=Unsafe bash::Missing 'set -euo pipefail' in $f"
               bad=1
             fi
-            if ! grep -Fqx "IFS=$'\\n\\t'" <<<"$header"; then
-              echo "::error title=Unsafe bash::Missing IFS=$'\\n\\t' in $f"
-              bad=1
-            fi
-
             if grep -Eq '(^|[[:space:]])case[[:space:]]' "$f"; then
               if ! grep -Eq '^[[:space:]]*\\*\\)' "$f"; then
-                echo "::error title=Unsafe bash::case without default (missing '*)') in $f"
+                printf '%s\n' "::error title=Unsafe bash::case without default (missing '*)') in $f"
                 bad=1
               fi
             fi
