@@ -4,6 +4,10 @@ on:
   workflow_call:
     inputs:
       path:
+        description: "Directory or image reference to scan"
+        required: false
+        type: string
+        default: "."
       severity:
         description: "Minimum severity that causes a non-zero exit (negligible/low/medium/high/critical)"
         type: string

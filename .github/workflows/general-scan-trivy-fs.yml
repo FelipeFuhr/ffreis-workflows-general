@@ -5,7 +5,6 @@ on:
     inputs:
       scan-ref:
         description: "Directory to scan"
-        description: "Comma-separated list of severities to report"
         type: string
         default: "HIGH,CRITICAL"
       fail-on-vuln:

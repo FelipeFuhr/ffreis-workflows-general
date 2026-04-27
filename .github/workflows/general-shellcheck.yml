@@ -13,6 +13,11 @@ on:
         required: false
         type: string
         default: ""
+      fail-on-error:
+        description: Fail the workflow if shellcheck finds any issues
+        required: false
+        type: boolean
+        default: true
 
 permissions:
   contents: read
