@@ -27,7 +27,7 @@ on:
         description: "golangci-lint version"
         required: false
         type: string
-        default: "v1.64.8"
+        default: "v2.11.4"
       shfmt-version:
         description: "shfmt version (tag)"
         required: false

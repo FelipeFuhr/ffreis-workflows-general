@@ -5,16 +5,13 @@ on:
     inputs:
       scan-ref:
         description: "Directory to scan"
-        type: string
-        default: "."
-      severity:
         description: "Comma-separated list of severities to report"
         type: string
         default: "HIGH,CRITICAL"
-      exit-code:
-        description: "Exit code when issues are found"
-        type: number
-        default: 1
+      fail-on-vuln:
+        description: "Fail the workflow if vulnerabilities are found at or above severity"
+        type: boolean
+        default: false
       upload-sarif:
         description: "Upload SARIF to GitHub code scanning"
         type: boolean
@@ -30,14 +27,14 @@ jobs:
     name: Trivy (fs)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v4
 
       - name: Run Trivy (filesystem)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
         with:
           scan-type: fs
           scan-ref: ${{ inputs.scan-ref }}
-          exit-code: ${{ inputs.exit-code }}
+          exit-code: ${{ inputs.fail-on-vuln && 1 || 0 }}
           severity: ${{ inputs.severity }}
           format: sarif
           output: trivy.sarif
@@ -50,7 +47,7 @@ jobs:
 
       - name: Upload SARIF
         if: inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
-        uses: github/codeql-action/upload-sarif@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734 # v3.35.2
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: trivy.sarif
           category: trivy-fs

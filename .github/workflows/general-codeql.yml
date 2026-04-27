@@ -33,9 +33,6 @@ permissions:
   contents: read
   security-events: write
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   analyze:
@@ -43,7 +40,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        uses: actions/checkout@v4
 
       - name: Resolve CodeQL settings
         id: vars
@@ -73,14 +70,14 @@ jobs:
 
       - name: CodeQL init (default queries)
         if: inputs.query-suite == ''
-        uses: github/codeql-action/init@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734 # v3.35.2
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ steps.vars.outputs.languages }}
           source-root: ${{ steps.vars.outputs.source_root }}
 
       - name: CodeQL init (custom queries)
         if: inputs.query-suite != ''
-        uses: github/codeql-action/init@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734 # v3.35.2
+        uses: github/codeql-action/init@v4
         with:
           languages: ${{ steps.vars.outputs.languages }}
           source-root: ${{ steps.vars.outputs.source_root }}
@@ -88,7 +85,7 @@ jobs:
 
       - name: Autobuild
         if: inputs.build-command == '' && steps.vars.outputs.languages != 'actions'
-        uses: github/codeql-action/autobuild@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734 # v3.35.2
+        uses: github/codeql-action/autobuild@v4
 
       - name: Build (manual)
         if: inputs.build-command != ''
@@ -99,7 +96,7 @@ jobs:
           bash -lc "$BUILD_COMMAND"
 
       - name: CodeQL analyze
-        uses: github/codeql-action/analyze@b2f9ef845756500b97acbdaf5c1dd4e9c1d15734 # v3.35.2
+        uses: github/codeql-action/analyze@v4
         with:
           category: "/language:${{ steps.vars.outputs.languages }}"
           upload: ${{ inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
