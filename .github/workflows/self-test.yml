@@ -1,6 +1,32 @@
 name: Self Test
 
 on:
+  workflow_call:
+    inputs:
+      dry-run:
+        description: If true, validates config files and exits without creating PRs/releases
+        required: false
+        type: boolean
+        default: false
+      config-file:
+        description: Path to release-please config file (for manifest mode)
+        required: false
+        type: string
+        default: ".release-please-config.json"
+      manifest-file:
+        description: Path to release-please manifest file (for manifest mode)
+        required: false
+        type: string
+        default: ".release-please-manifest.json"
+      target-branch:
+        description: Target branch for release PRs/releases
+        required: false
+        type: string
+        default: "main"
+    secrets:
+      RELEASE_PLEASE_TOKEN:
+        description: Optional token (PAT) to run release-please; defaults to github.token
+        required: false
 
 jobs:
   workflows-policy:
