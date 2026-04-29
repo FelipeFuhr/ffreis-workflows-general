@@ -49,7 +49,7 @@ jobs:
 
       - name: Install gitleaks
         env:
-          GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
+          GITLEAKS_VERSION: ${{ vars.GITLEAKS_VERSION || inputs.gitleaks-version }}
         run: |
           set -euo pipefail
           if [ -z "${GITLEAKS_VERSION:-}" ]; then
