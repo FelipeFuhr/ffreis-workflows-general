@@ -140,8 +140,18 @@ jobs:
         run: |-
           set -euo pipefail
 
+          # Set default version if not specified or empty
+          DEFAULT_SHFMT_VERSION="v3.8.0"
+          if [[ -z "${SHFMT_VERSION:-}" ]]; then
+            echo "shfmt version not specified, using default: $DEFAULT_SHFMT_VERSION"
+            SHFMT_VERSION="$DEFAULT_SHFMT_VERSION"
+          else
+            echo "Using shfmt version: $SHFMT_VERSION"
+          fi
+
           shfmt_path="$RUNNER_TEMP/shfmt"
           shfmt_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION#v}_linux_amd64"
+          echo "Downloading shfmt from: $shfmt_url"
           curl -fsSL "$shfmt_url" -o "$shfmt_path"
           chmod +x "$shfmt_path"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"

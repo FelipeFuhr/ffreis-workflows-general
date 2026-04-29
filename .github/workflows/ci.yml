@@ -124,20 +124,20 @@ jobs:
       upload-sarif: false
 
   grype-fs:
+    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       path: examples/hello
       upload-sarif: false
 
   run-commands:
+    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: examples/hello
@@ -148,10 +148,10 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
+    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-http-smoke.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       base-url: "https://example.com"
@@ -160,10 +160,10 @@ jobs:
       timeout-seconds: 20
 
   lefthook-minimal:
+    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: examples/hello
@@ -176,6 +176,7 @@ jobs:
       run-pre-push: false
 
   gitleaks:
+    # security-events: write required for SARIF/code scanning upload
     permissions:
       actions: read
       contents: read
