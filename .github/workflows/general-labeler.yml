@@ -1,6 +1,9 @@
 name: General / Labeler
 
 on:
+
+permissions:
+    contents: read
   workflow_call:
     inputs:
       rules-json:
