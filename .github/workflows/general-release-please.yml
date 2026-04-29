@@ -28,12 +28,10 @@ on:
         description: Optional token (PAT) to run release-please; defaults to github.token
         required: false
 
-permissions:
-  contents: write
-  pull-requests: write
-
 jobs:
   release-please:
+      pull-requests: write
+      issues: write
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -54,11 +52,3 @@ jobs:
           python3 -m json.tool "$MANIFEST_FILE" >/dev/null
           echo "release-please dry-run: config files are valid JSON."
 
-      - name: Run release-please
-        if: ${{ !inputs.dry-run }}
-        uses: googleapis/release-please-action@16a9c90856f42705d54a6fda1823352bdc62cf38 # v4
-        with:
-          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
-          config-file: ${{ inputs.config-file }}
-          manifest-file: ${{ inputs.manifest-file }}
-          target-branch: ${{ inputs.target-branch }}

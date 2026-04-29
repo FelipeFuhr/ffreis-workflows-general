@@ -98,7 +98,7 @@ jobs:
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
           if [[ "$INSTALL_GOLANGCI_LINT" == "true" ]]; then
-            GOBIN="${HOME}/.local/bin" go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+            GOBIN="${HOME}/.local/bin" go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
           fi
 
           if [[ "$INSTALL_GOVULNCHECK" == "true" ]]; then

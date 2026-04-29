@@ -1,19 +1,37 @@
 name: Self Test
 
 on:
-  push:
-    branches: [main]
-
-permissions:
-  contents: write
-  issues: write
-  pull-requests: write
-  actions: read
-  security-events: write
+  workflow_call:
+    inputs:
+      dry-run:
+        description: If true, validates config files and exits without creating PRs/releases
+        required: false
+        type: boolean
+        default: false
+      config-file:
+        description: Path to release-please config file (for manifest mode)
+        required: false
+        type: string
+        default: ".release-please-config.json"
+      manifest-file:
+        description: Path to release-please manifest file (for manifest mode)
+        required: false
+        type: string
+        default: ".release-please-manifest.json"
+      target-branch:
+        description: Target branch for release PRs/releases
+        required: false
+        type: string
+        default: "main"
+    secrets:
+      RELEASE_PLEASE_TOKEN:
+        description: Optional token (PAT) to run release-please; defaults to github.token
+        required: false
 
 jobs:
   workflows-policy:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
+
 
   actionlint:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
@@ -77,6 +95,10 @@ jobs:
       close-days: 1
 
   release-please:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       dry-run: true
