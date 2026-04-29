@@ -1,6 +1,10 @@
 name: General / gitleaks
 
 on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
   workflow_call:
     inputs:
       working-directory:
