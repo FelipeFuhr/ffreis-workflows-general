@@ -6,7 +6,7 @@ on:
       scan-ref:
         description: "Directory to scan"
         type: string
-        default: "HIGH,CRITICAL"
+        default: "."
       fail-on-vuln:
         description: "Fail the workflow if vulnerabilities are found at or above severity"
         type: boolean
@@ -34,7 +34,7 @@ jobs:
           scan-type: fs
           scan-ref: ${{ inputs.scan-ref }}
           exit-code: ${{ inputs.fail-on-vuln && 1 || 0 }}
-          severity: ${{ inputs.severity }}
+          severity: HIGH,CRITICAL
           format: sarif
           output: trivy.sarif
 
