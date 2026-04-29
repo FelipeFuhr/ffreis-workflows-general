@@ -1,6 +1,3 @@
-permissions:
-  actions: read
-  security-events: write
 name: DevOps / Automation
 
 on:
