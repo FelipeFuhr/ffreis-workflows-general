@@ -71,6 +71,9 @@ jobs:
       require-config: false
 
   stale:
+    permissions:
+      issues: write
+      pull-requests: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       dry-run: true
@@ -146,5 +149,5 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: .
-      gitleaks-version: '8.30.1'
+      gitleaks-version: ${{ vars.GITLEAKS_VERSION || '8.30.1' }}
       upload-sarif: true
