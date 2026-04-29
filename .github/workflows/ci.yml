@@ -82,6 +82,7 @@ jobs:
       close-days: 1
 
   release-please:
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
       pull-requests: write
@@ -102,6 +103,10 @@ jobs:
       upload-sarif: true
 
   codeql:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       languages: actions
