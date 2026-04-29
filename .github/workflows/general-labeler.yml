@@ -1,30 +1,30 @@
 name: General / Labeler
 
-on:
 
+on:
+    workflow_call:
+        inputs:
+            rules-json:
+                description: "JSON array of {label: string, patterns: string[]} objects"
+                required: true
+                type: string
+            changed-files:
+                description: Optional newline-separated list of changed files (bypasses GitHub API)
+                required: false
+                type: string
+                default: ""
+            pr-number:
+                description: Optional PR number (only needed if not running on pull_request)
+                required: false
+                type: number
+                default: 0
+            dry-run:
+                description: If true, prints labels without applying them
+                required: false
+                type: boolean
+                default: false
 permissions:
     contents: read
-  workflow_call:
-    inputs:
-      rules-json:
-        description: "JSON array of {label: string, patterns: string[]} objects"
-        required: true
-        type: string
-      changed-files:
-        description: Optional newline-separated list of changed files (bypasses GitHub API)
-        required: false
-        type: string
-        default: ""
-      pr-number:
-        description: Optional PR number (only needed if not running on pull_request)
-        required: false
-        type: number
-        default: 0
-      dry-run:
-        description: If true, prints labels without applying them
-        required: false
-        type: boolean
-        default: false
 
 
 
