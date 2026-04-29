@@ -17,6 +17,7 @@ concurrency:
 jobs:
   scorecard:
     if: vars.SCORECARD_ENABLED == 'true' && github.event_name != 'pull_request'
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       contents: read
       actions: read
