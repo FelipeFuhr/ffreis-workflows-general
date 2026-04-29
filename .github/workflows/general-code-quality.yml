@@ -52,7 +52,7 @@ jobs:
       COMPLEXITY_THRESHOLD: ${{ inputs.cognitive-complexity-threshold }}
       GOLANGCI_LINT_VERSION: ${{ inputs.golangci-lint-version }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v4
 
       - name: Detect go.mod
         id: go_mod
@@ -127,7 +127,7 @@ jobs:
     env:
       SHFMT_VERSION: ${{ inputs.shfmt-version }}
     steps:
-      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+      - uses: actions/checkout@v4
 
       - name: Install shellcheck
         run: |-
