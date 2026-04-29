@@ -4,6 +4,10 @@ on:
   pull_request:
     branches: [main]
 
+permissions:
+  contents: read
+  packages: read
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -16,6 +20,10 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
 
   osv-scanner:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: .
@@ -29,6 +37,10 @@ jobs:
 
   labeler:
     if: github.event_name == 'pull_request'
+    permissions:
+      issues: write
+      pull-requests: write
+      contents: read
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       dry-run: true
@@ -129,3 +141,10 @@ jobs:
       run-pre-commit: false
       run-commit-msg: false
       run-pre-push: false
+
+  gitleaks:
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
+    with:
+      working-directory: .
+      gitleaks-version: '8.30.1'
+      upload-sarif: true
