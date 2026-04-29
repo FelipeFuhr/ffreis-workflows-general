@@ -20,18 +20,17 @@ jobs:
 
   actionlint:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
-    with:
-      working-directory: .
-
-  gitleaks:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
-    with:
-      working-directory: .
-      upload-sarif: true
 
   osv-scanner:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
+
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
+      actions: read
+      security-events: write
       working-directory: .
       upload-sarif: true
 
