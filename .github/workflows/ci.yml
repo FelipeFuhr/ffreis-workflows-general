@@ -4,8 +4,7 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: write
+  contents: read
   issues: write
   pull-requests: write
   actions: read
@@ -81,6 +80,10 @@ jobs:
       close-days: 1
 
   release-please:
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       dry-run: true
