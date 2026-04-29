@@ -144,7 +144,6 @@ jobs:
         run: |-
           set -euo pipefail
 
-          # Set default version if not specified or empty
           DEFAULT_SHFMT_VERSION="v3.8.0"
           if [[ -z "${SHFMT_VERSION:-}" ]]; then
             echo "shfmt version not specified, using default: $DEFAULT_SHFMT_VERSION"
@@ -153,10 +152,22 @@ jobs:
             echo "Using shfmt version: $SHFMT_VERSION"
           fi
 
+          # Remove v prefix for asset name, but keep for tag
+          SHFMT_VERSION_NOPREFIX="${SHFMT_VERSION#v}"
           shfmt_path="$RUNNER_TEMP/shfmt"
-           shfmt_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION/v/}_linux_amd64"
-          echo "Downloading shfmt from: $shfmt_url"
-          curl -fsSL "$shfmt_url" -o "$shfmt_path"
+
+          # Try to get asset name from GitHub API for robustness
+          asset_url=$(curl -s "https://api.github.com/repos/mvdan/sh/releases/tags/${SHFMT_VERSION}" | grep browser_download_url | grep linux_amd64 | grep -v .deb | cut -d '"' -f 4 | head -n1)
+          if [[ -z "$asset_url" ]]; then
+            # Fallback to constructed URL if API fails
+            asset_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION_NOPREFIX}_linux_amd64"
+            echo "GitHub API did not return asset, falling back to: $asset_url"
+          else
+            echo "Found shfmt asset via GitHub API: $asset_url"
+          fi
+
+          echo "Downloading shfmt from: $asset_url"
+          curl -fsSL "$asset_url" -o "$shfmt_path"
           chmod +x "$shfmt_path"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
