@@ -52,6 +52,10 @@ jobs:
           GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
         run: |
           set -euo pipefail
+          if [ -z "${GITLEAKS_VERSION:-}" ]; then
+            echo "ERROR: GITLEAKS_VERSION is not set. Please provide a valid version."
+            exit 1
+          fi
           url="https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
           tmp="$(mktemp -d)"
           trap 'rm -rf "$tmp"' EXIT
