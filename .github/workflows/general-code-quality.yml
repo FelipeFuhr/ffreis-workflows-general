@@ -150,7 +150,7 @@ jobs:
           fi
 
           shfmt_path="$RUNNER_TEMP/shfmt"
-          shfmt_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION#v}_linux_amd64"
+          shfmt_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION}_linux_amd64"
           echo "Downloading shfmt from: $shfmt_url"
           curl -fsSL "$shfmt_url" -o "$shfmt_path"
           chmod +x "$shfmt_path"
