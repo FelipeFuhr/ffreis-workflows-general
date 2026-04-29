@@ -10,6 +10,8 @@ concurrency:
 
 permissions:
   contents: read
+  issues: write
+  pull-requests: write
 
 jobs:
   labeler:
@@ -17,7 +19,7 @@ jobs:
       contents: read
       pull-requests: write
       issues: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       rules-json: |-
         [

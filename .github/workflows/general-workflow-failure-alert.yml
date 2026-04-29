@@ -1,0 +1,39 @@
+name: General / Workflow Failure Alert
+
+on:
+  workflow_call:
+
+permissions:
+  pull-requests: write
+
+jobs:
+  alert:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+    steps:
+      - name: Comment on PR
+        uses: actions/github-script@f28e40c7f34bde8b3046d885e986cb6290c5673b # v7
+        with:
+          script: |
+            const run = context.payload.workflow_run;
+            if (!run) {
+              core.warning("No workflow_run payload found; skipping alert.");
+              return;
+            }
+            const prs = run.pull_requests ?? [];
+            if (!prs.length) return;
+            const body = [
+              `### ⚠️ Workflow failed: **${run.name}**`,
+              ``,
+              `The [${run.name} run](${run.html_url}) completed with conclusion \`${run.conclusion}\`.`,
+              `Branch: \`${run.head_branch}\` · Commit: \`${run.head_sha.slice(0, 7)}\``,
+            ].join("\n");
+            for (const pr of prs) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: pr.number,
+                body,
+              });
+            }

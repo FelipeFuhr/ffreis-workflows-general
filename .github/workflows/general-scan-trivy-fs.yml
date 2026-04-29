@@ -6,7 +6,7 @@ on:
       scan-ref:
         description: "Directory to scan"
         type: string
-        default: "HIGH,CRITICAL"
+        default: "."
       fail-on-vuln:
         description: "Fail the workflow if vulnerabilities are found at or above severity"
         type: boolean
@@ -26,7 +26,7 @@ jobs:
     name: Trivy (fs)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
 
       - name: Run Trivy (filesystem)
         uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1
@@ -34,7 +34,7 @@ jobs:
           scan-type: fs
           scan-ref: ${{ inputs.scan-ref }}
           exit-code: ${{ inputs.fail-on-vuln && 1 || 0 }}
-          severity: ${{ inputs.severity }}
+          severity: HIGH,CRITICAL
           format: sarif
           output: trivy.sarif
 
@@ -46,7 +46,7 @@ jobs:
 
       - name: Upload SARIF
         if: inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
-        uses: github/codeql-action/upload-sarif@v4
+        uses: github/codeql-action/upload-sarif@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61 # v4
         with:
           sarif_file: trivy.sarif
           category: trivy-fs
