@@ -104,6 +104,7 @@ jobs:
       upload-sarif: true
 
   codeql:
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       actions: read
       contents: read
@@ -115,18 +116,22 @@ jobs:
       upload-sarif: false
 
   trivy-fs:
-    permissions:
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
+      permissions:
       actions: read
       contents: read
+      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       scan-ref: examples/hello
       upload-sarif: false
 
   grype-fs:
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       actions: read
       contents: read
+      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       path: examples/hello
