@@ -177,6 +177,7 @@ jobs:
     permissions:
       actions: read
       contents: read
+      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: .
