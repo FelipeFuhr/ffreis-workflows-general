@@ -104,11 +104,9 @@ jobs:
       upload-sarif: true
 
   codeql:
-    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       languages: actions
@@ -116,29 +114,24 @@ jobs:
       upload-sarif: false
 
   trivy-fs:
-    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       scan-ref: examples/hello
       upload-sarif: false
 
   grype-fs:
-    # security-events: write required for SARIF/code scanning upload
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       path: examples/hello
       upload-sarif: false
 
   run-commands:
-    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
@@ -152,7 +145,6 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
-    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
@@ -164,7 +156,6 @@ jobs:
       timeout-seconds: 20
 
   lefthook-minimal:
-    # security-events: write removed; not uploading SARIF
     permissions:
       actions: read
       contents: read
@@ -180,13 +171,11 @@ jobs:
       run-pre-push: false
 
   gitleaks:
-    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       actions: read
       contents: read
-      security-events: write
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: .
       gitleaks-version: ${{ vars.GITLEAKS_VERSION || '8.30.1' }}
-      upload-sarif: true
+      upload-sarif: false
