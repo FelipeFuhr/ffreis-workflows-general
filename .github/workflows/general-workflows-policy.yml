@@ -21,7 +21,7 @@ on:
             "google/osv-scanner-action@v1",
             "googleapis/release-please-action@v4",
             "golang/govulncheck-action@v1",
-            "hashicorp/setup-terraform@v3",
+            "hashicorp/setup-terraform@5e8dbf3c6d9deaf4193ca7a8fb23f2ac83bb6c85",
             "infracost/actions/setup@v3",
             "ossf/scorecard-action@v2",
             "semgrep/semgrep-action@v1",
