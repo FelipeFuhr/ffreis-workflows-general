@@ -30,35 +30,35 @@ on:
 
 jobs:
   workflows-policy:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
 
 
   actionlint:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: .
 
   gitleaks:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: .
       upload-sarif: true
 
   osv-scanner:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: .
       upload-sarif: true
 
   semantic-pr:
     if: github.event_name == 'pull_request'
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       title: "feat: self-test"
 
   labeler:
     if: github.event_name == 'pull_request'
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       dry-run: true
       changed-files: |
@@ -70,25 +70,25 @@ jobs:
         ]
 
   shellcheck:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: .
 
   code-quality:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: examples/hello
       enable-go: false
       enable-shell: true
 
   pre-commit:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-pre-commit.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-pre-commit.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: .
       require-config: false
 
   stale:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       dry-run: true
       stale-days: 1
@@ -99,7 +99,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       dry-run: true
       config-file: examples/hello/release-please-config.json
@@ -110,31 +110,31 @@ jobs:
       actions: read
       security-events: write
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       upload-sarif: true
 
   codeql:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       languages: actions
       source-root: .github/workflows
       upload-sarif: false
 
   trivy-fs:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       scan-ref: examples/hello
       upload-sarif: false
 
   grype-fs:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       path: examples/hello
       upload-sarif: false
 
   run-commands:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: examples/hello
       timeout-minutes: 5
@@ -144,7 +144,7 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-http-smoke.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-http-smoke.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       base-url: "https://example.com"
       paths: |-
@@ -152,7 +152,7 @@ jobs:
       timeout-seconds: 20
 
   lefthook-minimal:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@8bf36c075ec2050d3174a7872bcda21a9cc78b58 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@58bf0f1cf93489884172fb35e6326fc41d5201ab # main
     with:
       working-directory: examples/hello
       install-golangci-lint: false
