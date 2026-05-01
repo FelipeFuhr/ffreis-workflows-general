@@ -24,4 +24,3 @@ commit-msg:
   commands:
     conventional-commits:
       run: ./scripts/hooks/check_commit_msg.sh {1}
-

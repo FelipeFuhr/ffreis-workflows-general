@@ -40,4 +40,3 @@ setup: hooks ## Install git hooks and verify required tools
 		exit 1; \
 	}
 	@echo "Dev environment ready."
-

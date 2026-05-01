@@ -61,4 +61,3 @@ jobs:
           python3 -m json.tool "$CONFIG_FILE" >/dev/null
           python3 -m json.tool "$MANIFEST_FILE" >/dev/null
           echo "release-please dry-run: config files are valid JSON."
-

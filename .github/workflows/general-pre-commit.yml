@@ -56,4 +56,3 @@ jobs:
           python3 -m pip install "pre-commit==${PRE_COMMIT_VERSION}"
           pre-commit --version
           pre-commit run --all-files --show-diff-on-failure
-

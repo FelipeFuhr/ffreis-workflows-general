@@ -43,24 +43,24 @@ jobs:
           import os
           import re
           import sys
-          
+
           title = os.environ.get("TITLE", "").strip() or os.environ.get("EVENT_TITLE", "").strip()
           types = [t.strip() for t in os.environ.get("TYPES", "").split(",") if t.strip()]
           require_scope = os.environ.get("REQUIRE_SCOPE", "false").lower() == "true"
-          
+
           if not title:
               print("ERROR: missing PR title (provide inputs.title or run on pull_request)", file=sys.stderr)
               sys.exit(2)
           if not types:
               print("ERROR: inputs.types must not be empty", file=sys.stderr)
               sys.exit(2)
-          
+
           types_re = "|".join(re.escape(t) for t in types)
           if require_scope:
               pattern = rf"^({types_re})\\([^)]+\\)(!)?: .+"
           else:
               pattern = rf"^({types_re})(\\([^)]+\\))?(!)?: .+"
-          
+
           if not re.match(pattern, title):
               example = "feat(parser): add support for X" if require_scope else "feat: add support for X"
               print("ERROR: PR title is not semantic (Conventional Commits).", file=sys.stderr)
@@ -68,6 +68,6 @@ jobs:
               print(f"Expected: {example}", file=sys.stderr)
               print(f"Allowed types: {', '.join(types)}", file=sys.stderr)
               sys.exit(1)
-          
+
           print(f"OK: semantic PR title: {title}")
           PY

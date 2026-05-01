@@ -68,26 +68,26 @@ jobs:
           import sys
           import urllib.parse
           import urllib.request
-          
+
           gh_token = os.environ["GH_TOKEN"]
           repo = os.environ["GH_REPO"]
           api = os.environ["GH_API_URL"].rstrip("/")
-          
+
           stale_days = int(float(os.environ.get("STALE_DAYS", "60")))
           close_days = int(float(os.environ.get("CLOSE_DAYS", "7")))
           only = (os.environ.get("ONLY", "both") or "both").strip().lower()
           stale_label = (os.environ.get("STALE_LABEL", "stale") or "stale").strip()
           exempt_labels = [x.strip() for x in (os.environ.get("EXEMPT_LABELS", "") or "").split(",") if x.strip()]
           dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
-          
+
           if only not in ("issues", "prs", "both"):
               print("ERROR: inputs.only must be one of: issues, prs, both", file=sys.stderr)
               sys.exit(2)
-          
+
           today = dt.date.today()
           stale_before = today - dt.timedelta(days=stale_days)
           close_before = today - dt.timedelta(days=stale_days + close_days)
-          
+
           def request_json(method: str, url: str, data=None):
               body = None if data is None else json.dumps(data).encode("utf-8")
               req = urllib.request.Request(
@@ -104,7 +104,7 @@ jobs:
                   if resp.status == 204:
                       return None
                   return json.load(resp)
-          
+
           def search(q: str) -> list[dict]:
               out: list[dict] = []
               page = 1
@@ -118,31 +118,31 @@ jobs:
                       break
                   page += 1
               return out
-          
+
           def add_labels(number: int, labels: list[str]):
               url = f"{api}/repos/{repo}/issues/{number}/labels"
               request_json("POST", url, {"labels": labels})
-          
+
           def close_issue(number: int):
               url = f"{api}/repos/{repo}/issues/{number}"
               request_json("PATCH", url, {"state": "closed"})
-          
+
           def comment(number: int, body: str):
               if not body.strip():
                   return
               url = f"{api}/repos/{repo}/issues/{number}/comments"
               request_json("POST", url, {"body": body})
-          
+
           def process(kind: str):
               is_filter = "is:issue" if kind == "issues" else "is:pr"
               exempt = " ".join([f"-label:{l}" for l in exempt_labels])
-              
+
               to_stale_q = f"repo:{repo} {is_filter} is:open updated:<{stale_before.isoformat()} -label:{stale_label} {exempt}".strip()
               to_close_q = f"repo:{repo} {is_filter} is:open updated:<{close_before.isoformat()} label:{stale_label} {exempt}".strip()
-              
+
               to_stale = search(to_stale_q)
               to_close = search(to_close_q)
-              
+
               print(f"{kind}: mark stale candidates: {len(to_stale)}")
               for item in to_stale:
                   number = item.get("number")
@@ -154,7 +154,7 @@ jobs:
                       continue
                   add_labels(int(number), [stale_label])
                   comment(int(number), "Marking as stale due to inactivity.")
-              
+
               print(f"{kind}: close candidates: {len(to_close)}")
               for item in to_close:
                   number = item.get("number")
@@ -166,13 +166,13 @@ jobs:
                       continue
                   comment(int(number), "Closing due to prolonged inactivity.")
                   close_issue(int(number))
-          
+
           targets = []
           if only == "both":
               targets = ["issues", "prs"]
           else:
               targets = [only]
-          
+
           for t in targets:
               process(t)
           PY

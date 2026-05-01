@@ -62,30 +62,30 @@ jobs:
           import urllib.error
           from fnmatch import fnmatch
           from typing import Iterable
-          
+
           rules_json = os.environ["RULES_JSON"]
           changed_files_raw = os.environ.get("CHANGED_FILES", "")
           dry_run = os.environ.get("DRY_RUN", "false").lower() == "true"
-          
+
           gh_token = os.environ["GH_TOKEN"]
           gh_repo = os.environ["GH_REPO"]
           gh_api = os.environ["GH_API_URL"].rstrip("/")
-          
+
           pr_number = int(os.environ.get("PR_NUMBER", "0") or "0")
           event_pr = os.environ.get("EVENT_PR_NUMBER", "")
           if pr_number == 0 and event_pr:
               pr_number = int(event_pr)
-          
+
           try:
               rules = json.loads(rules_json)
           except Exception as e:
               print(f"ERROR: invalid rules-json: {e}", file=sys.stderr)
               sys.exit(2)
-          
+
           if not isinstance(rules, list) or not rules:
               print("ERROR: rules-json must be a non-empty JSON array", file=sys.stderr)
               sys.exit(2)
-          
+
           def api_request(method: str, path: str, payload_obj=None):
               url = f"{gh_api}{path}"
               data = None
@@ -179,7 +179,7 @@ jobs:
                               pass
                           raise
                       raise
-          
+
           if changed_files_raw.strip():
               changed_files = [line.strip() for line in changed_files_raw.splitlines() if line.strip()]
           else:
@@ -187,11 +187,11 @@ jobs:
                   print("ERROR: could not determine PR number; provide inputs.pr-number or run on pull_request", file=sys.stderr)
                   sys.exit(2)
               changed_files = list_pr_files(gh_repo, pr_number)
-          
+
           print(f"Changed files ({len(changed_files)}):")
           for f in changed_files:
               print(f"- {f}")
-          
+
           labels: set[str] = set()
           for item in rules:
               if not isinstance(item, dict):
@@ -207,18 +207,18 @@ jobs:
                   if any(isinstance(p, str) and fnmatch(f, p) for p in patterns):
                       labels.add(label)
                       break
-          
+
           if not labels:
               print("No labels matched; nothing to do.")
               sys.exit(0)
-          
+
           labels_sorted = sorted(labels)
           print(f"Matched labels: {', '.join(labels_sorted)}")
-          
+
           if dry_run:
               print("Dry-run enabled; skipping label application.")
               sys.exit(0)
-          
+
           # Create missing labels, then apply with retry (labels can be eventually consistent).
           attempts = 5
           delay_s = 0.2

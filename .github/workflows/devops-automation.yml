@@ -17,12 +17,13 @@ concurrency:
 jobs:
   scorecard:
     if: vars.SCORECARD_ENABLED == 'true' && github.event_name != 'pull_request'
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       contents: read
       actions: read
       security-events: write
       id-token: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@fcec4030a47caad22222434804950ab56561641a # main
     with:
       upload-sarif: true
 
@@ -32,7 +33,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@fcec4030a47caad22222434804950ab56561641a # main
     with:
       only: "both"
 
@@ -42,9 +43,8 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@fcec4030a47caad22222434804950ab56561641a # main
     with:
       target-branch: "main"
     secrets:
       RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}
-

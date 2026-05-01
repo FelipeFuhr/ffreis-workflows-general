@@ -2,4 +2,3 @@
 set -euo pipefail
 
 echo "hello from shell script"
-

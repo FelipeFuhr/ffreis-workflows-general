@@ -13,4 +13,3 @@ if rg -n --hidden --glob '!.git/**' '^(<{7}|={7}|>{7})' . >/dev/null; then
   rg -n --hidden --glob '!.git/**' '^(<{7}|={7}|>{7})' .
   exit 1
 fi
-
