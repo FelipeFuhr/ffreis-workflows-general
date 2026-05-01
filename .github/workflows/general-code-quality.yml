@@ -32,12 +32,6 @@ on:
         required: false
         type: string
         default: "v2.11.4"
-      shfmt-version:
-        description: "shfmt version (tag)"
-        required: false
-        type: string
-        default: "v3.8.0"
-
 permissions:
   contents: read
   issues: write
@@ -83,6 +77,7 @@ jobs:
           cache-dependency-path: ${{ inputs.working-directory }}/go.sum
 
       - name: gofmt (autofix)
+        id: gofmt
         if: steps.go_mod.outputs.found == 'true'
         run: |-
           set -euo pipefail
@@ -96,7 +91,7 @@ jobs:
           fi
 
       - name: Upload patch (gofmt)
-        if: failure() && steps.go_mod.outputs.found == 'true'
+        if: steps.gofmt.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: code-quality-gofmt.patch
@@ -133,8 +128,6 @@ jobs:
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
-    env:
-      SHFMT_VERSION: ${{ inputs.shfmt-version }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
@@ -154,34 +147,13 @@ jobs:
         run: |-
           set -euo pipefail
 
-          DEFAULT_SHFMT_VERSION="v3.8.0"
-          if [[ -z "${SHFMT_VERSION:-}" ]]; then
-            echo "shfmt version not specified, using default: $DEFAULT_SHFMT_VERSION"
-            SHFMT_VERSION="$DEFAULT_SHFMT_VERSION"
-          else
-            echo "Using shfmt version: $SHFMT_VERSION"
-          fi
-
-          # Remove v prefix for asset name, but keep for tag
-          SHFMT_VERSION_NOPREFIX="${SHFMT_VERSION#v}"
           shfmt_path="$RUNNER_TEMP/shfmt"
-
-          # Try to get asset name from GitHub API for robustness
-          asset_url=$(curl -s "https://api.github.com/repos/mvdan/sh/releases/tags/${SHFMT_VERSION}" | grep browser_download_url | grep linux_amd64 | grep -v .deb | cut -d '"' -f 4 | head -n1)
-          if [[ -z "$asset_url" ]]; then
-            # Fallback to constructed URL if API fails
-            asset_url="https://github.com/mvdan/sh/releases/download/${SHFMT_VERSION}/shfmt_${SHFMT_VERSION_NOPREFIX}_linux_amd64"
-            echo "GitHub API did not return asset, falling back to: $asset_url"
-          else
-            echo "Found shfmt asset via GitHub API: $asset_url"
-          fi
-
-          echo "Downloading shfmt from: $asset_url"
-          curl -fsSL "$asset_url" -o "$shfmt_path"
+          curl -fsSL "https://github.com/mvdan/sh/releases/download/v3.8.0/shfmt_v3.8.0_linux_amd64" -o "$shfmt_path"
           chmod +x "$shfmt_path"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
 
       - name: shfmt (autofix)
+        id: shfmt
         run: |-
           set -euo pipefail
 
@@ -199,7 +171,7 @@ jobs:
           fi
 
       - name: Upload patch (shfmt)
-        if: failure()
+        if: steps.shfmt.outcome == 'failure'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: code-quality-shfmt.patch
@@ -247,4 +219,3 @@ jobs:
           fi
 
           shellcheck -x "${files[@]}"
-

@@ -22,4 +22,3 @@ if ! printf '%s' "$msg" | rg -q '^(feat|fix|docs|chore|refactor|test|ci|build)(\
   echo "Example: feat(cli): add dry-run flag"
   exit 1
 fi
-

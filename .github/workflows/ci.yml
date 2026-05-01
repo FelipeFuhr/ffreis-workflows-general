@@ -15,10 +15,10 @@ concurrency:
 jobs:
   workflows-policy:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
-  
+
   actionlint:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
-  
+
   osv-scanner:
     permissions:
       contents: read
@@ -28,13 +28,13 @@ jobs:
     with:
       working-directory: .
       upload-sarif: true
-  
+
   semantic-pr:
     if: github.event_name == 'pull_request'
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       title: "feat: self-test"
-  
+
   labeler:
     if: github.event_name == 'pull_request'
     permissions:
@@ -51,25 +51,25 @@ jobs:
           {"label":"example","patterns":["examples/**"]},
           {"label":"js","patterns":["**/*.js"]}
         ]
-  
+
   shellcheck:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: .
-  
+
   code-quality:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: examples/hello
       enable-go: false
       enable-shell: true
-  
+
   pre-commit:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-pre-commit.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       working-directory: .
       require-config: false
-  
+
   stale:
     permissions:
       contents: read
@@ -80,7 +80,7 @@ jobs:
       dry-run: true
       stale-days: 1
       close-days: 1
-  
+
   release-please:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
@@ -92,7 +92,7 @@ jobs:
       dry-run: true
       config-file: examples/hello/release-please-config.json
       manifest-file: examples/hello/release-please-manifest.json
-  
+
   scorecard:
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
@@ -102,7 +102,7 @@ jobs:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@fc5fcac8c2cfe0ccd8d18b73383df445ec31e371 # main
     with:
       upload-sarif: true
-  
+
   codeql:
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
@@ -114,7 +114,7 @@ jobs:
       languages: actions
       source-root: .github/workflows
       upload-sarif: false
-  
+
   trivy-fs:
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
@@ -125,7 +125,7 @@ jobs:
     with:
       scan-ref: examples/hello
       upload-sarif: false
-  
+
   grype-fs:
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
@@ -136,7 +136,7 @@ jobs:
     with:
       path: examples/hello
       upload-sarif: false
-  
+
   run-commands:
     permissions:
       actions: read
@@ -149,7 +149,7 @@ jobs:
         set -euo pipefail
         test -f index.js
         node --version >/dev/null
-  
+
   http-smoke:
     permissions:
       actions: read
@@ -160,7 +160,7 @@ jobs:
       paths: |-
         /
       timeout-seconds: 20
-  
+
   lefthook-minimal:
     permissions:
       actions: read
@@ -175,7 +175,7 @@ jobs:
       run-pre-commit: false
       run-commit-msg: false
       run-pre-push: false
-  
+
   gitleaks:
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:

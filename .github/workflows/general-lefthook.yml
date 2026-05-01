@@ -155,4 +155,3 @@ jobs:
         run: |
           set -euo pipefail
           LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run pre-push
-

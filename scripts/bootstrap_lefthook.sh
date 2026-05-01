@@ -31,4 +31,3 @@ tar -xzf "$tmp/$tarball" -C "$tmp"
 
 install -m 0755 "$tmp/lefthook" "$BIN_DIR/lefthook"
 echo "Installed lefthook to $BIN_DIR/lefthook"
-
