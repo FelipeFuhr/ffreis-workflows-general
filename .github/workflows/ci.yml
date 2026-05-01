@@ -177,6 +177,7 @@ jobs:
       run-pre-push: false
   
   gitleaks:
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       actions: read
       contents: read
