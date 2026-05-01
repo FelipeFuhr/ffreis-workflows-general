@@ -34,8 +34,6 @@ on:
         default: "v2.11.4"
 permissions:
   contents: read
-  issues: write
-  pull-requests: write
 
 jobs:
   go:
