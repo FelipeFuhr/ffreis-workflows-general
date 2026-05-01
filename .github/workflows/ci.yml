@@ -117,7 +117,7 @@ jobs:
   
   trivy-fs:
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
-      permissions:
+    permissions:
       actions: read
       contents: read
       security-events: write
