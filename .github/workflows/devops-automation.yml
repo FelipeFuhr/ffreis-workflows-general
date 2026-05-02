@@ -43,7 +43,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@2c051eb6d9aa5ecea3e969d7e2fd2b4e21a002d6 # v1.0.1
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@779872d533bff61ccc732c6f2d91615eefbb5e0a # v1.0.1+
     with:
       target-branch: "main"
     secrets:
