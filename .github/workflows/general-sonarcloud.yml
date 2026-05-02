@@ -1,0 +1,46 @@
+name: General / SonarCloud
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Directory containing sonar-project.properties"
+        required: false
+        type: string
+        default: "."
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
+    secrets:
+      SONAR_TOKEN:
+        description: "SonarCloud token"
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sonarcloud:
+    name: SonarCloud
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: SonarCloud Scan
+        uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3.1.0
+        with:
+          projectBaseDir: ${{ inputs.working-directory }}
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
