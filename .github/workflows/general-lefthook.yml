@@ -59,6 +59,11 @@ on:
         description: "Commit message used to validate the commit-msg hook"
         type: string
         default: "ci(hooks): validate commit-msg hook"
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
 
 permissions:
   contents: read
@@ -67,6 +72,7 @@ jobs:
   lefthook:
     name: Lefthook
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
 
     defaults:
       run:

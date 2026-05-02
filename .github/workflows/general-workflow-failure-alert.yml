@@ -2,6 +2,12 @@ name: General / Workflow Failure Alert
 
 on:
   workflow_call:
+    inputs:
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
 
 permissions:
   pull-requests: write
@@ -9,6 +15,7 @@ permissions:
 jobs:
   alert:
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       pull-requests: write
     steps:
