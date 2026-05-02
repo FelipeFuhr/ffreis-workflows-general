@@ -34,7 +34,9 @@ on:
         required: false
 
 permissions:
-  contents: read
+  contents: write
+  pull-requests: write
+  issues: write
 
 jobs:
   release-please:

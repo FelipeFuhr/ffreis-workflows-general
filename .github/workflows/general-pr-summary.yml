@@ -1,0 +1,50 @@
+name: General / PR Summary
+
+on:
+  workflow_call:
+    inputs:
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
+
+permissions:
+  contents: read
+
+jobs:
+  pr-summary:
+    if: github.event.action == 'opened' && github.event.pull_request.body == ''
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout (full history for PR range)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Generate and post PR summary comment
+        env:
+          GH_TOKEN: ${{ github.token }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+
+          summary=$(git log --no-merges --format="- %s (%h)" "${BASE_SHA}..${HEAD_SHA}")
+
+          if [[ -z "$summary" ]]; then
+            echo "No non-merge commits found; skipping comment."
+            exit 0
+          fi
+
+          gh pr comment "$PR_NUMBER" --body "$(printf '### Commit summary\n\n%s\n\n> Auto-generated from commit messages. Edit the PR description to add context.' "$summary")"

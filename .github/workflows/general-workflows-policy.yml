@@ -125,10 +125,9 @@ jobs:
                   action, ref = val.rsplit("@", 1)
                   full = f"{action}@{ref}"
                   if branch_ref_re.match(ref):
-                      # Allow org-local reusable workflows to use version branches while they iterate.
-                      # Prefer tagging or pinning to a SHA for immutable builds.
+                      # Self-referential org workflows use @main intentionally to avoid
+                      # the bootstrap cycle of pinning to a SHA that doesn't exist yet.
                       if action.startswith("FelipeFuhr/ffreis-workflows-general/.github/workflows/") and ref == "main":
-                          add_warn(path, i, f"Allowed branch ref for org workflow: {full}", val)
                           continue
                       add_err(path, i, f"Forbidden: branch ref in uses: ({ref})", val)
                       continue
