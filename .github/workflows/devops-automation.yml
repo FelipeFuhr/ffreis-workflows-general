@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   scorecard:
-    if: (vars.SCORECARD_ENABLED || 'true') == 'true' && github.event_name != 'pull_request'
+    if: vars.SCORECARD_ENABLED != 'false' && github.event_name != 'pull_request'
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       contents: read
@@ -28,7 +28,7 @@ jobs:
       upload-sarif: true
 
   stale:
-    if: (vars.STALE_ENABLED || 'true') == 'true' && github.event_name != 'pull_request'
+    if: vars.STALE_ENABLED != 'false' && github.event_name != 'pull_request'
     permissions:
       contents: read
       issues: write
@@ -38,7 +38,7 @@ jobs:
       only: "both"
 
   release-please:
-    if: (vars.RELEASE_PLEASE_ENABLED || 'true') == 'true' && github.event_name == 'push'
+    if: vars.RELEASE_PLEASE_ENABLED != 'false' && github.event_name == 'push'
     permissions:
       contents: write
       pull-requests: write
