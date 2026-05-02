@@ -15,13 +15,13 @@ jobs:
   semantic-pr:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       require-scope: false
 
   actionlint:
     permissions:
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: "."

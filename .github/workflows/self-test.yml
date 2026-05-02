@@ -30,35 +30,35 @@ on:
 
 jobs:
   workflows-policy:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-workflows-policy.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
 
 
   actionlint:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-actionlint.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: .
 
   gitleaks:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: .
       upload-sarif: true
 
   osv-scanner:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: .
       upload-sarif: true
 
   semantic-pr:
     if: github.event_name == 'pull_request'
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-semantic-pr.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       title: "feat: self-test"
 
   labeler:
     if: github.event_name == 'pull_request'
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-labeler.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       dry-run: true
       changed-files: |
@@ -70,25 +70,25 @@ jobs:
         ]
 
   shellcheck:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-shellcheck.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: .
 
   code-quality:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: examples/hello
       enable-go: false
       enable-shell: true
 
   pre-commit:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-pre-commit.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-pre-commit.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: .
       require-config: false
 
   stale:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       dry-run: true
       stale-days: 1
@@ -99,7 +99,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       dry-run: true
       config-file: examples/hello/release-please-config.json
@@ -110,31 +110,31 @@ jobs:
       actions: read
       security-events: write
       contents: read
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       upload-sarif: true
 
   codeql:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-codeql.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       languages: actions
       source-root: .github/workflows
       upload-sarif: false
 
   trivy-fs:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       scan-ref: examples/hello
       upload-sarif: false
 
   grype-fs:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       path: examples/hello
       upload-sarif: false
 
   run-commands:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-run-commands.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: examples/hello
       timeout-minutes: 5
@@ -144,7 +144,7 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-http-smoke.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-http-smoke.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       base-url: "https://example.com"
       paths: |-
@@ -152,7 +152,7 @@ jobs:
       timeout-seconds: 20
 
   lefthook-minimal:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-lefthook.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: examples/hello
       install-golangci-lint: false
