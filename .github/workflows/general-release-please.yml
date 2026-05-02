@@ -33,15 +33,13 @@ on:
         description: Optional token (PAT) to run release-please; defaults to github.token
         required: false
 
-<<<<<<< HEAD
-=======
 permissions:
   # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
   contents: write
   pull-requests: write
   issues: write
-
->>>>>>> db61881 (fix: correct release-please workflow-level permissions)
+=======
+>>>>>>> c19e386 (fix: remove top-level permissions from release-please workflow)
 jobs:
   release-please:
     permissions:
