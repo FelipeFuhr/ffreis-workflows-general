@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: "main"
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
     secrets:
       RELEASE_PLEASE_TOKEN:
         description: Optional token (PAT) to run release-please; defaults to github.token
@@ -38,6 +43,7 @@ jobs:
       pull-requests: write
       issues: write
     runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
@@ -61,3 +67,12 @@ jobs:
           python3 -m json.tool "$CONFIG_FILE" >/dev/null
           python3 -m json.tool "$MANIFEST_FILE" >/dev/null
           echo "release-please dry-run: config files are valid JSON."
+
+      - name: Run release-please
+        if: "!inputs.dry-run"
+        uses: googleapis/release-please-action@a02a34c4d625c9a836ab8a64a9fa359b159cb92a # v4.2.0
+        with:
+          token: ${{ secrets.RELEASE_PLEASE_TOKEN || github.token }}
+          config-file: ${{ inputs.config-file }}
+          manifest-file: ${{ inputs.manifest-file }}
+          target-branch: ${{ inputs.target-branch }}

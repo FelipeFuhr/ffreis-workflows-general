@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   release-please:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       dry-run: false
       config-file: .release-please-config.json

@@ -20,7 +20,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-gitleaks.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: "."
       scan-history: true
@@ -31,7 +31,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-trivy-fs.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       scan-ref: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
@@ -41,7 +41,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scan-grype-fs.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       path: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
@@ -51,7 +51,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-osv-scanner.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       working-directory: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}

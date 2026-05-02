@@ -63,7 +63,8 @@ on:
         required: true
 
       timeout-minutes:
-        description: "Job timeout"
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
         type: number
         default: 30
 

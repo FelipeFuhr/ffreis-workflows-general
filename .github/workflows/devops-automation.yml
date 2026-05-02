@@ -23,7 +23,7 @@ jobs:
       actions: read
       security-events: write
       id-token: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-scorecard.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       upload-sarif: true
 
@@ -33,7 +33,7 @@ jobs:
       contents: read
       issues: write
       pull-requests: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-stale.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       only: "both"
 
@@ -43,7 +43,7 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@fcec4030a47caad22222434804950ab56561641a # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
       target-branch: "main"
     secrets:
