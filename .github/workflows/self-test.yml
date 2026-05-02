@@ -56,6 +56,10 @@ jobs:
     with:
       title: "feat: self-test"
 
+  commit-messages:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/general-commit-messages.yml
+
   labeler:
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/general-labeler.yml
