@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.1...v1.0.2) (2026-05-02)
+
+
+### Bug Fixes
+
+* ci ([#27](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/27)) ([4bd5e73](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/4bd5e73f654fa89e476ef381973f3db387bf6505))
+
 ## [1.0.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.0...v1.0.1) (2026-05-02)
 
 
