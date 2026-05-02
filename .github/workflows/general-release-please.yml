@@ -34,6 +34,7 @@ on:
         required: false
 
 permissions:
+  # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
   contents: write
   pull-requests: write
   issues: write
