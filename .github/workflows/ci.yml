@@ -60,6 +60,12 @@ jobs:
   code-quality:
     uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
     with:
+      working-directory: .
+      enable-shell: false
+
+  code-quality-examples:
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-code-quality.yml@main # NOSONAR: self-referential org workflow — pinning to a SHA creates a bootstrap cycle
+    with:
       working-directory: examples/hello
       enable-go: false
       enable-shell: true
