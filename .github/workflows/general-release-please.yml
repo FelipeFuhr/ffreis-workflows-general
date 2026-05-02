@@ -33,9 +33,6 @@ on:
         description: Optional token (PAT) to run release-please; defaults to github.token
         required: false
 
-permissions:
-  contents: read
-
 jobs:
   release-please:
     permissions:

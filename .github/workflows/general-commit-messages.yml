@@ -1,0 +1,103 @@
+name: General / Commit Messages
+
+on:
+  workflow_call:
+    inputs:
+      types:
+        description: Comma-separated allowed Conventional Commit types
+        required: false
+        type: string
+        default: "feat,fix,chore,docs,refactor,test,perf,ci,build,revert,style"
+      require-scope:
+        description: "If true, require a scope in every commit: type(scope): subject"
+        required: false
+        type: boolean
+        default: false
+      max-subject-length:
+        description: Maximum character length for the commit subject line
+        required: false
+        type: number
+        default: 72
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
+
+permissions:
+  contents: read
+
+jobs:
+  commit-messages:
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout (full history for PR range)
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
+      - name: Validate commit messages
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          TYPES: ${{ inputs.types }}
+          REQUIRE_SCOPE: ${{ inputs.require-scope }}
+          MAX_SUBJECT_LENGTH: ${{ inputs.max-subject-length }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import os
+          import re
+          import subprocess
+          import sys
+
+          base = os.environ["BASE_SHA"]
+          head = os.environ["HEAD_SHA"]
+          types = [t.strip() for t in os.environ.get("TYPES", "").split(",") if t.strip()]
+          require_scope = os.environ.get("REQUIRE_SCOPE", "false").lower() == "true"
+          max_len = int(os.environ.get("MAX_SUBJECT_LENGTH", "72"))
+
+          if not types:
+              print("ERROR: inputs.types must not be empty", file=sys.stderr)
+              sys.exit(2)
+
+          result = subprocess.run(
+              ["git", "log", "--no-merges", "--format=%s", f"{base}..{head}"],
+              capture_output=True, text=True, check=True,
+          )
+          subjects = [s.strip() for s in result.stdout.splitlines() if s.strip()]
+
+          if not subjects:
+              print("No non-merge commits found in range; skipping.")
+              sys.exit(0)
+
+          types_re = "|".join(re.escape(t) for t in types)
+          if require_scope:
+              pattern = rf"^({types_re})\([^)]+\)(!)?: .+"
+          else:
+              pattern = rf"^({types_re})(\([^)]+\))?(!)?: .+"
+
+          errors = []
+          for subject in subjects:
+              if len(subject) > max_len:
+                  errors.append(f"  Subject too long ({len(subject)} > {max_len}): {subject}")
+              elif not re.match(pattern, subject):
+                  errors.append(f"  Not Conventional Commits: {subject}")
+
+          if errors:
+              example = "feat(scope): description" if require_scope else "feat: description"
+              print(f"ERROR: {len(errors)} commit(s) have non-conforming messages.", file=sys.stderr)
+              print(f"Allowed types: {', '.join(types)}", file=sys.stderr)
+              print(f"Expected format: {example}", file=sys.stderr)
+              for e in errors:
+                  print(e, file=sys.stderr)
+              sys.exit(1)
+
+          print(f"OK: all {len(subjects)} commit message(s) follow Conventional Commits.")
+          PY
