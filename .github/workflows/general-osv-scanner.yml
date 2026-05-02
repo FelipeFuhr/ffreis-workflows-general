@@ -32,7 +32,6 @@ permissions:
 jobs:
   osv-scanner:
     name: OSV-Scanner
-    timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
       actions: read
