@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   release-please:
-    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@9ad94800719bbd13507ec65c2837bbabf94d263e # main
+    uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-release-please.yml@main
     with:
       dry-run: false
       config-file: .release-please-config.json
