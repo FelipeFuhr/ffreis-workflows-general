@@ -35,6 +35,12 @@ jobs:
     with:
       title: "feat: self-test"
 
+  semantic-pr-with-scope:
+    if: github.event_name == 'pull_request'
+    uses: ./.github/workflows/general-semantic-pr.yml
+    with:
+      title: "fix(ci): self-test with scope"
+
   labeler:
     if: github.event_name == 'pull_request'
     permissions:

@@ -63,9 +63,9 @@ jobs:
 
           types_re = "|".join(re.escape(t) for t in types)
           if require_scope:
-              pattern = rf"^({types_re})\\([^)]+\\)(!)?: .+"
+              pattern = rf"^({types_re})\([^)]+\)(!)?: .+"
           else:
-              pattern = rf"^({types_re})(\\([^)]+\\))?(!)?: .+"
+              pattern = rf"^({types_re})(\([^)]+\))?(!)?: .+"
 
           if not re.match(pattern, title):
               example = "feat(parser): add support for X" if require_scope else "feat: add support for X"
