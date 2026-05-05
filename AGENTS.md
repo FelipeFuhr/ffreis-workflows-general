@@ -6,7 +6,7 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
 
 ## Non-obvious rules (read before changing anything)
 
-1. **Every new `general-*.yml` must be exercised in `self-test.yml`** against
+1. **Every new `general-*.yml` must be exercised in `ci.yml`** against
    `examples/hello/`. No exceptions. `devops-*.yml` workflows (repo-maintenance) are
    exempt because they compose already-verified workflows.
 
@@ -35,7 +35,7 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
   general-*.yml   ← reusable library (what consumers call)
   devops-*.yml    ← repo-maintenance (stale, labeling, scorecard — exempt from self-test)
   ci.yml          ← self-test orchestrator
-examples/hello/   ← canonical test subject for self-test.yml
+examples/hello/   ← canonical test subject for ci.yml
 Makefile          ← setup, lint, secrets-scan-staged, hooks
 ```
 
