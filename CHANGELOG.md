@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.0.4](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.3...v1.0.4) (2026-05-05)
+
+
+### Bug Fixes
+
+* **semantic-pr:** fix scope regex using double backslashes in raw f-string ([#32](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/32)) ([0f1515e](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/0f1515effa075090424a42f5d21551fba271dd60))
+
 ## [1.0.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.2...v1.0.3) (2026-05-02)
 
 
