@@ -53,6 +53,8 @@ jobs:
           category: scorecard
 
   scorecard-publish:
+    # The scorecard-action has no "publish-only" mode, so the scan must run again here.
+    # This keeps id-token:write isolated to this job (only minted when publish-results is true).
     name: Publish Scorecard Results
     if: inputs.publish-results
     needs: scorecard
