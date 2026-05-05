@@ -8,6 +8,11 @@ on:
         required: false
         type: boolean
         default: false
+      publish-results:
+        description: Publish results to the OpenSSF REST API (enables badge; requires id-token:write in caller)
+        required: false
+        type: boolean
+        default: false
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
@@ -18,6 +23,7 @@ permissions:
   contents: read
   actions: read
   security-events: write
+  id-token: write
 
 jobs:
   scorecard:
@@ -38,7 +44,7 @@ jobs:
         with:
           results_format: sarif
           results_file: scorecard.sarif
-          publish_results: false
+          publish_results: ${{ inputs.publish-results }}
 
       - name: Upload SARIF
         if: inputs.upload-sarif

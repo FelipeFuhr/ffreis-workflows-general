@@ -185,6 +185,11 @@ jobs:
       run-commit-msg: false
       run-pre-push: false
 
+  semgrep:
+    uses: ./.github/workflows/general-semgrep.yml
+    with:
+      working-directory: examples/hello
+
   gitleaks:
     permissions:
       actions: read
