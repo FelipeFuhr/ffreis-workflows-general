@@ -1,69 +1,59 @@
-# ffreis-workflows-general — contribution guide
+# Agent Context
 
-This repository is a library of language-agnostic reusable GitHub Actions workflows.
-The `examples/hello/` directory is the canonical test subject used by `self-test.yml`.
+**This repo:** `ffreis-workflows-general` — language-agnostic reusable GitHub Actions
+workflow library. Covers actionlint, CodeQL, gitleaks, shellcheck, commit-message
+linting, and other general-purpose CI concerns. Consumed by every other repo in the fleet.
 
----
+## Non-obvious rules (read before changing anything)
 
-## Rules for adding or modifying workflows
+1. **Every new `general-*.yml` must be exercised in `ci.yml`** against
+   `examples/hello/`. No exceptions. `devops-*.yml` workflows (repo-maintenance) are
+   exempt because they compose already-verified workflows.
 
-### 1. Every new workflow must be in `self-test.yml`
+2. **Shell injection prevention is enforced by Semgrep.** Never interpolate
+   `${{ inputs.* }}` directly inside `run:` blocks. Always route through an `env:` var.
+   CI will block the PR.
 
-Every file added to `.github/workflows/` (except `self-test.yml` itself) **must** have a
-corresponding job in `self-test.yml` that calls it against `examples/hello/`.
+3. **Third-party action SHAs are managed by Renovate.** Do not edit them manually.
+   GitHub-owned actions (`actions/*`) may use a major version tag.
 
-A workflow that is not exercised by `self-test.yml` is unverified. It will not be merged.
+4. **No `secrets: inherit`.** Only explicitly declared secrets are passed to callers.
+   Workflows requiring secrets must gate against fork PRs in `self-test.yml`.
 
-**Handling required secrets** — if a workflow requires a secret (e.g. `SONAR_TOKEN`),
-declare it as `required: true` in the workflow. In `self-test.yml`, gate the entire job
-so it is explicitly skipped on fork PRs (where secrets are unavailable).
+5. **Concurrency is caller-controlled.** Never add `concurrency:` blocks to reusable
+   workflows — callers set their own strategy.
 
-**Exception: DevOps entrypoint workflows** — files named `devops-*.yml` are
-consumer/entrypoint workflows that compose reusable library workflows. They are triggered
-by repository events (`push`, `pull_request`, `schedule`) and are **not** required to be
-called from `self-test.yml`. Their constituent reusable workflows are each individually
-verified by `self-test.yml`. New `devops-*.yml` files must call only `general-*.yml`
-reusable workflows already covered by `self-test.yml`.
+6. **Fork PR gating pattern:**
+   ```yaml
+   if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+   ```
 
----
+## Structure
 
-### 2. No silent failures
-
-A step that fails silently is worse than one that fails loudly.
-
-- If a required tool is missing → `exit 1` with a clear install message.
-- If a required secret is absent and the workflow cannot meaningfully skip → fail the job.
-- Never print a warning and continue when the operation did not run.
-
----
-
-### 3. No shell injection — inputs go through `env:`
-
-Never interpolate `${{ inputs.* }}`, `${{ github.* }}`, or any expression directly inside a
-`run:` step. Always route through an `env:` variable.
-
----
-
-### 4. Least-privilege secrets — never `secrets: inherit`
-
-Pass only the secrets a workflow explicitly declares, both in `self-test.yml` and in any
-downstream consumer.
-
----
-
-### 5. `secrets.*` is forbidden in `if:` conditions
-
-GitHub Actions forbids `secrets.*` in `if:` expressions within `workflow_call` reusable
-workflows. Gate jobs in the caller workflow instead.
-
----
-
-### 6. Pin third-party actions to a full commit SHA
-
-```yaml
-# BAD
-uses: actions/checkout@v4
-
-# GOOD
-uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
 ```
+.github/workflows/
+  general-*.yml   ← reusable library (what consumers call)
+  devops-*.yml    ← repo-maintenance (stale, labeling, scorecard — exempt from self-test)
+  ci.yml          ← self-test orchestrator
+examples/hello/   ← canonical test subject for ci.yml
+Makefile          ← setup, lint, secrets-scan-staged, hooks
+```
+
+## Build/test
+
+```bash
+make setup              # verify gitleaks + bootstrap lefthook
+make lint               # actionlint on all workflows
+make secrets-scan-staged
+```
+
+## Cross-repo role
+
+Consumed by all `devops/ffreis-workflows-*` repos and indirectly by every repo
+in the workspace. Callers pin to a full commit SHA; Renovate manages updates.
+
+## Keeping this file current
+
+- **If you discover a fact not reflected here:** add it before finishing your task.
+- **If something here is wrong or outdated:** correct it in the same commit as the code change.
+- **If you rename a file, command, or concept referenced here:** update the reference.
