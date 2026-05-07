@@ -1,0 +1,62 @@
+name: General / Website Deploy Dispatch
+
+# Sends a repository_dispatch event to ffreis-website-deployer so that all
+# deployments with deploy_mode: auto run for the given website.
+# Called from source repos (data, templates) after CI passes on push to main.
+# The deployer filters to only auto-mode deployments; manual ones are skipped.
+
+on:
+  workflow_call:
+    inputs:
+      website_name:
+        description: "Website name — must match a YAML file in ffreis-website-inventory"
+        type: string
+        required: true
+      deployer_repo:
+        description: "Deployer repo (default: {owner}/ffreis-website-deployer)"
+        type: string
+        default: ""
+      deployment_name:
+        description: "Specific deployment to target (empty = all auto deployments)"
+        type: string
+        default: ""
+    secrets:
+      DISPATCH_TOKEN:
+        description: "PAT with repo write access to the deployer repo"
+        required: true
+
+permissions: {}
+
+jobs:
+  dispatch:
+    name: Dispatch Deploy (${{ inputs.website_name }})
+    runs-on: ubuntu-latest
+    permissions: {}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Send repository_dispatch to deployer
+        env:
+          GH_TOKEN: ${{ secrets.DISPATCH_TOKEN }}
+          DEPLOYER: ${{ inputs.deployer_repo || format('{0}/ffreis-website-deployer', github.repository_owner) }}
+          WEBSITE: ${{ inputs.website_name }}
+          DEPLOYMENT: ${{ inputs.deployment_name }}
+        run: |
+          set -euo pipefail
+          gh api "repos/${DEPLOYER}/dispatches" \
+            --method POST \
+            --input - < <(python3 -c "
+          import json, os, sys
+          print(json.dumps({
+              'event_type': 'website-deploy-request',
+              'client_payload': {
+                  'website_name':    os.environ['WEBSITE'],
+                  'deployment_name': os.environ['DEPLOYMENT'],
+              }
+          }))
+          ")
+          echo "Dispatched: website=${WEBSITE} deployment=${DEPLOYMENT:-all-auto} → ${DEPLOYER}"
