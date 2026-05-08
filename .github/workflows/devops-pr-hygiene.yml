@@ -13,6 +13,7 @@ permissions:
 
 jobs:
   semantic-pr:
+    timeout-minutes: 15
     permissions:
       contents: read
     uses: ./.github/workflows/general-semantic-pr.yml
@@ -20,6 +21,7 @@ jobs:
       require-scope: false
 
   commit-messages:
+    timeout-minutes: 15
     permissions:
       contents: read
     uses: ./.github/workflows/general-commit-messages.yml
@@ -27,6 +29,7 @@ jobs:
       require-scope: false
 
   pr-summary:
+    timeout-minutes: 15
     if: github.event.action == 'opened'
     permissions:
       contents: read
@@ -34,6 +37,7 @@ jobs:
     uses: ./.github/workflows/general-pr-summary.yml
 
   actionlint:
+    timeout-minutes: 15
     permissions:
       contents: read
     uses: ./.github/workflows/general-actionlint.yml

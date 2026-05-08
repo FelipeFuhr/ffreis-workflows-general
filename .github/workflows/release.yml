@@ -20,6 +20,7 @@ concurrency:
 
 jobs:
   release-please:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-release-please.yml
     with:
       dry-run: false

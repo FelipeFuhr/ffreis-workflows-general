@@ -29,6 +29,7 @@ permissions: {}
 
 jobs:
   dispatch:
+    timeout-minutes: 15
     name: Dispatch Deploy (${{ inputs.website_name }})
     runs-on: ubuntu-latest
     permissions: {}

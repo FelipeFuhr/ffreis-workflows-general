@@ -30,37 +30,44 @@ on:
 
 jobs:
   workflows-policy:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-workflows-policy.yml
 
 
   actionlint:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-actionlint.yml
     with:
       working-directory: .
 
   gitleaks:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-gitleaks.yml
     with:
       working-directory: .
       upload-sarif: true
 
   osv-scanner:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-osv-scanner.yml
     with:
       working-directory: .
       upload-sarif: true
 
   semantic-pr:
+    timeout-minutes: 30
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "feat: self-test"
 
   commit-messages:
+    timeout-minutes: 30
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/general-commit-messages.yml
 
   labeler:
+    timeout-minutes: 30
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/general-labeler.yml
     with:
@@ -74,11 +81,13 @@ jobs:
         ]
 
   shellcheck:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-shellcheck.yml
     with:
       working-directory: .
 
   code-quality:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-code-quality.yml
     with:
       working-directory: examples/hello
@@ -86,12 +95,14 @@ jobs:
       enable-shell: true
 
   pre-commit:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-pre-commit.yml
     with:
       working-directory: .
       require-config: false
 
   stale:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-stale.yml
     with:
       dry-run: true
@@ -99,6 +110,7 @@ jobs:
       close-days: 1
 
   release-please:
+    timeout-minutes: 30
     permissions:
       contents: write
       pull-requests: write
@@ -110,6 +122,7 @@ jobs:
       manifest-file: examples/hello/release-please-manifest.json
 
   scorecard:
+    timeout-minutes: 30
     permissions:
       actions: read
       security-events: write
@@ -119,6 +132,7 @@ jobs:
       upload-sarif: true
 
   codeql:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-codeql.yml
     with:
       languages: actions
@@ -126,18 +140,21 @@ jobs:
       upload-sarif: false
 
   trivy-fs:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-scan-trivy-fs.yml
     with:
       scan-ref: examples/hello
       upload-sarif: false
 
   grype-fs:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-scan-grype-fs.yml
     with:
       path: examples/hello
       upload-sarif: false
 
   run-commands:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-run-commands.yml
     with:
       working-directory: examples/hello
@@ -148,6 +165,7 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-http-smoke.yml
     with:
       base-url: "https://example.com"
@@ -156,6 +174,7 @@ jobs:
       timeout-seconds: 20
 
   lefthook-minimal:
+    timeout-minutes: 30
     uses: ./.github/workflows/general-lefthook.yml
     with:
       working-directory: examples/hello
