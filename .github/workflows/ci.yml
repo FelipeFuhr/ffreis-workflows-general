@@ -14,15 +14,12 @@ concurrency:
 
 jobs:
   workflows-policy:
-    timeout-minutes: 15
     uses: ./.github/workflows/general-workflows-policy.yml
 
   actionlint:
-    timeout-minutes: 15
     uses: ./.github/workflows/general-actionlint.yml
 
   osv-scanner:
-    timeout-minutes: 30
     permissions:
       contents: read
       actions: read
@@ -33,21 +30,18 @@ jobs:
       upload-sarif: true
 
   semantic-pr:
-    timeout-minutes: 15
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "feat: self-test"
 
   semantic-pr-with-scope:
-    timeout-minutes: 15
     if: github.event_name == 'pull_request'
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "fix(ci): self-test with scope"
 
   labeler:
-    timeout-minutes: 15
     if: github.event_name == 'pull_request'
     permissions:
       issues: write
@@ -65,20 +59,17 @@ jobs:
         ]
 
   shellcheck:
-    timeout-minutes: 15
     uses: ./.github/workflows/general-shellcheck.yml
     with:
       working-directory: .
 
   code-quality:
-    timeout-minutes: 30
     uses: ./.github/workflows/general-code-quality.yml
     with:
       working-directory: .
       enable-shell: false
 
   code-quality-examples:
-    timeout-minutes: 30
     uses: ./.github/workflows/general-code-quality.yml
     with:
       working-directory: examples/hello
@@ -86,14 +77,12 @@ jobs:
       enable-shell: true
 
   pre-commit:
-    timeout-minutes: 15
     uses: ./.github/workflows/general-pre-commit.yml
     with:
       working-directory: .
       require-config: false
 
   stale:
-    timeout-minutes: 15
     permissions:
       contents: read
       issues: write
@@ -105,7 +94,6 @@ jobs:
       close-days: 1
 
   release-please:
-    timeout-minutes: 30
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
     permissions:
       contents: write
@@ -118,7 +106,6 @@ jobs:
       manifest-file: examples/hello/release-please-manifest.json
 
   scorecard:
-    timeout-minutes: 15
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       contents: read
@@ -129,7 +116,6 @@ jobs:
       upload-sarif: true
 
   codeql:
-    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
@@ -141,7 +127,6 @@ jobs:
       upload-sarif: false
 
   trivy-fs:
-    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
@@ -152,7 +137,6 @@ jobs:
       upload-sarif: false
 
   grype-fs:
-    timeout-minutes: 30
     permissions:
       actions: read
       contents: read
@@ -163,7 +147,6 @@ jobs:
       upload-sarif: false
 
   run-commands:
-    timeout-minutes: 15
     permissions:
       actions: read
       contents: read
@@ -177,7 +160,6 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
-    timeout-minutes: 15
     permissions:
       actions: read
       contents: read
@@ -189,7 +171,6 @@ jobs:
       timeout-seconds: 20
 
   lefthook-minimal:
-    timeout-minutes: 15
     permissions:
       actions: read
       contents: read
@@ -205,13 +186,11 @@ jobs:
       run-pre-push: false
 
   semgrep:
-    timeout-minutes: 30
     uses: ./.github/workflows/general-semgrep.yml
     with:
       working-directory: examples/hello
 
   gitleaks:
-    timeout-minutes: 15
     permissions:
       actions: read
       contents: read

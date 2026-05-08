@@ -31,7 +31,6 @@ permissions:
 
 jobs:
   osv-scanner:
-    timeout-minutes: 30
     name: OSV-Scanner
     permissions:
       contents: read

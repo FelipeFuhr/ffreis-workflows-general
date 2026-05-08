@@ -16,7 +16,6 @@ concurrency:
 
 jobs:
   scorecard:
-    timeout-minutes: 15
     if: vars.SCORECARD_ENABLED != 'false' && github.event_name != 'pull_request'
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
@@ -29,7 +28,6 @@ jobs:
       upload-sarif: true
 
   stale:
-    timeout-minutes: 15
     if: vars.STALE_ENABLED != 'false' && github.event_name != 'pull_request'
     permissions:
       contents: read
@@ -40,7 +38,6 @@ jobs:
       only: "both"
 
   release-please:
-    timeout-minutes: 30
     if: vars.RELEASE_PLEASE_ENABLED != 'false' && github.event_name == 'push'
     permissions:
       contents: write
