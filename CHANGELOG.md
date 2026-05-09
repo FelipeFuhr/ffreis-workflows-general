@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.1.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.4...v1.1.0) (2026-05-09)
+
+
+### Features
+
+* add general-website-dispatch reusable workflow ([#37](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/37)) ([7a17afb](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/7a17afb611f7ebb0264d71b9afa2ae9f58b2ab10))
+* **ci:** add general-semgrep, scorecard publish-results, and platform-standards migration ([#34](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/34)) ([745f58b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/745f58b17437f71d918ac7f4d632cd7dcac68f23))
+
 ## [1.0.4](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.3...v1.0.4) (2026-05-05)
 
 
