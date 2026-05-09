@@ -190,6 +190,17 @@ jobs:
     with:
       working-directory: examples/hello
 
+  website-dispatch:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-website-dispatch.yml
+    with:
+      website_name: hello
+      dry_run: true
+    secrets:
+      DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   gitleaks:
     permissions:
       actions: read
