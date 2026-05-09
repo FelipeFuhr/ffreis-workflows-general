@@ -1,0 +1,62 @@
+name: General / Website Deploy Dispatch
+
+on:
+  workflow_call:
+    inputs:
+      website_name:
+        description: "Website name (must match a key in the fleet inventory)"
+        type: string
+        required: true
+      deployer_repo:
+        description: "Deployer repository (owner/name). Defaults to {owner}/ffreis-website-deployer"
+        type: string
+        default: ""
+      dry_run:
+        description: "Log what would be dispatched without actually sending the event"
+        type: boolean
+        default: false
+    secrets:
+      DISPATCH_TOKEN:
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  dispatch:
+    name: Dispatch
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+
+    steps:
+      - name: Dispatch website deploy request
+        if: ${{ !inputs.dry_run }}
+        uses: actions/github-script@v7
+        env:
+          WEBSITE_NAME: ${{ inputs.website_name }}
+          DEPLOYER_REPO: ${{ inputs.deployer_repo }}
+        with:
+          github-token: ${{ secrets.DISPATCH_TOKEN }}
+          script: |
+            const websiteName = process.env.WEBSITE_NAME;
+            const defaultRepo = `${context.repo.owner}/ffreis-website-deployer`;
+            const deployerRepo = process.env.DEPLOYER_REPO || defaultRepo;
+            const [owner, repo] = deployerRepo.split('/');
+            await github.rest.repos.createDispatchEvent({
+              owner,
+              repo,
+              event_type: 'website-deploy-request',
+              client_payload: {
+                website_name: websiteName,
+                source: context.repo.repo,
+                sha: context.sha,
+              },
+            });
+            core.info(`Dispatched website-deploy-request for ${websiteName} to ${deployerRepo}`);
+
+      - name: Dry run output
+        if: ${{ inputs.dry_run }}
+        env:
+          WEBSITE_NAME: ${{ inputs.website_name }}
+        run: |
+          echo "dry-run: would dispatch website-deploy-request for ${WEBSITE_NAME}"
