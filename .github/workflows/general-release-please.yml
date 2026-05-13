@@ -38,8 +38,6 @@ permissions:
   contents: write
   pull-requests: write
   issues: write
-=======
->>>>>>> c19e386 (fix: remove top-level permissions from release-please workflow)
 jobs:
   release-please:
     permissions:
