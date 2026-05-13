@@ -200,7 +200,6 @@ jobs:
       dry_run: true
     secrets:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-
   gitleaks:
     permissions:
       actions: read
