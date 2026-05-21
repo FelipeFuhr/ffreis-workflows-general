@@ -1,0 +1,59 @@
+name: General / Promote Gate
+
+on:
+  workflow_call:
+    inputs:
+      dev_url:
+        description: "Base URL of the dev site to verify (e.g. https://dev.ffreis.com)"
+        required: true
+        type: string
+      paths:
+        description: "Space-separated URL paths to check (default: /en/ /)"
+        required: false
+        type: string
+        default: "/en/ /"
+      timeout-minutes:
+        description: "Maximum minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 5
+
+permissions:
+  contents: read
+
+jobs:
+  gate:
+    name: Verify dev site before promote
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Check dev site is healthy
+        env:
+          BASE: ${{ inputs.dev_url }}
+          PATHS: ${{ inputs.paths }}
+        run: |
+          set -euo pipefail
+          FAILED=()
+          for path in $PATHS; do
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --location "${BASE%/}${path}")
+            case "$status" in
+              2*|301|302) echo "ok  ${BASE%/}${path} → $status" ;;
+              *)
+                echo "FAIL ${BASE%/}${path} → $status"
+                FAILED+=("${path}")
+                ;;
+            esac
+          done
+          if [[ ${#FAILED[@]} -gt 0 ]]; then
+            echo ""
+            echo "Dev site health check failed for: ${FAILED[*]}"
+            echo "Fix the dev site or roll back develop before promoting to production."
+            exit 1
+          fi
+          echo ""
+          echo "Dev site is healthy — safe to promote."
