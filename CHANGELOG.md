@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.1.0...v1.2.0) (2026-05-22)
+
+
+### Features
+
+* add general-kb-sync reusable workflow ([#42](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/42)) ([56b4af8](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/56b4af8ba7d8702c524597196e5b8643fe6b49ac))
+* add general-promote-gate reusable workflow ([#38](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/38)) ([23226b0](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/23226b0ad6e547e6760c9dc36f77cd680fa6deef))
+
 ## [1.1.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.0.4...v1.1.0) (2026-05-09)
 
 
