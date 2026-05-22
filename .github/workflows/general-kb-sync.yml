@@ -1,0 +1,166 @@
+name: General / KB Sync
+
+# Reusable workflow for KB document repos (petlook-kb-ask, petlook-kb-imagegen, etc.).
+# Reads the KB configuration from the inventory YAML, syncs docs/ to the target S3 bucket,
+# and bumps DOCS_VERSION on the configured Lambda to force a cold-start re-fetch.
+#
+# Branch routing:
+#   main / master  → reads <kb_name>.yaml      → prod environment
+#   develop        → reads <kb_name>-dev.yaml   → dev  environment
+#   other branches → skipped
+#
+# Usage in a KB source repo (one job in ci.yml):
+#   jobs:
+#     sync:
+#       uses: FelipeFuhr/ffreis-workflows-general/.github/workflows/general-kb-sync.yml@main
+#       with:
+#         kb_name: petlook-kb-imagegen
+#       secrets:
+#         CI_REPO_READ_TOKEN: ${{ secrets.CI_REPO_READ_TOKEN }}
+#         AWS_KB_SYNC_ROLE_ARN: ${{ secrets.AWS_KB_SYNC_ROLE_ARN }}
+
+on:
+  workflow_call:
+    inputs:
+      kb_name:
+        description: "Base inventory key (filename without branch suffix, e.g. petlook-kb-imagegen)"
+        required: true
+        type: string
+      docs_path:
+        description: "Local path to sync (default: docs)"
+        required: false
+        type: string
+        default: "docs"
+      timeout-minutes:
+        required: false
+        type: number
+        default: 15
+    secrets:
+      CI_REPO_READ_TOKEN:
+        required: true
+      AWS_KB_SYNC_ROLE_ARN:
+        required: true
+
+permissions:
+  contents: read
+
+jobs:
+  sync:
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    name: Sync KB docs to S3
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Resolve inventory YAML name for branch
+        id: routing
+        run: |
+          set -euo pipefail
+          BRANCH="${GITHUB_REF_NAME}"
+          case "$BRANCH" in
+            main|master)
+              YAML_NAME="${{ inputs.kb_name }}"
+              ENV_NAME="prod"
+              ;;
+            develop)
+              YAML_NAME="${{ inputs.kb_name }}-dev"
+              ENV_NAME="dev"
+              ;;
+            *)
+              echo "Branch '$BRANCH' is not main/develop — skipping sync."
+              echo "skip=true" >> "$GITHUB_OUTPUT"
+              exit 0
+              ;;
+          esac
+          echo "yaml_name=$YAML_NAME" >> "$GITHUB_OUTPUT"
+          echo "env_name=$ENV_NAME"   >> "$GITHUB_OUTPUT"
+          echo "skip=false"           >> "$GITHUB_OUTPUT"
+
+      - name: Checkout KB source
+        if: steps.routing.outputs.skip != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Checkout inventory
+        if: steps.routing.outputs.skip != 'true'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          repository: ${{ format('{0}/ffreis-website-inventory', github.repository_owner) }}
+          path: inventory
+          token: ${{ secrets.CI_REPO_READ_TOKEN }}
+
+      - name: Install pyyaml
+        if: steps.routing.outputs.skip != 'true'
+        run: pip install pyyaml --quiet
+
+      - name: Parse KB config from inventory
+        if: steps.routing.outputs.skip != 'true'
+        id: config
+        run: |
+          python3 - <<EOF
+          import yaml, os
+          yaml_file = f"inventory/{os.environ['YAML_NAME']}.yaml"
+          try:
+              with open(yaml_file) as f:
+                  cfg = yaml.safe_load(f)
+          except FileNotFoundError:
+              print(f"::error::Inventory file not found: {yaml_file}")
+              print(f"::error::Create {yaml_file} in ffreis-website-inventory or add a dev variant.")
+              raise SystemExit(1)
+          t = cfg['target']
+          lam = cfg.get('lambda', {})
+          github_env = cfg.get('github_environment', '')
+          with open(os.environ['GITHUB_OUTPUT'], 'a') as f:
+              f.write(f"s3_bucket={t['s3_bucket']}\n")
+              f.write(f"object_prefix={t.get('object_prefix', 'docs')}\n")
+              f.write(f"region={t.get('region', 'us-east-1')}\n")
+              f.write(f"function_name={lam.get('function_name', '')}\n")
+              f.write(f"github_env={github_env}\n")
+          EOF
+        env:
+          YAML_NAME: ${{ steps.routing.outputs.yaml_name }}
+
+      - name: Configure AWS credentials (OIDC)
+        if: steps.routing.outputs.skip != 'true'
+        uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
+        with:
+          role-to-assume: ${{ secrets.AWS_KB_SYNC_ROLE_ARN }}
+          aws-region: ${{ steps.config.outputs.region }}
+
+      - name: Sync docs to S3
+        if: steps.routing.outputs.skip != 'true'
+        env:
+          S3_BUCKET: ${{ steps.config.outputs.s3_bucket }}
+          OBJECT_PREFIX: ${{ steps.config.outputs.object_prefix }}
+          AWS_REGION: ${{ steps.config.outputs.region }}
+          DOCS_PATH: ${{ inputs.docs_path }}
+        run: |
+          aws s3 sync "$DOCS_PATH/" "s3://${S3_BUCKET}/${OBJECT_PREFIX}/" \
+            --delete --exact-timestamps --region "$AWS_REGION"
+          echo "Synced $DOCS_PATH/ → s3://${S3_BUCKET}/${OBJECT_PREFIX}/"
+
+      - name: Bump DOCS_VERSION on Lambda
+        if: steps.routing.outputs.skip != 'true'
+        env:
+          FUNCTION_NAME: ${{ steps.config.outputs.function_name }}
+          AWS_REGION: ${{ steps.config.outputs.region }}
+        run: |
+          [ -z "$FUNCTION_NAME" ] && { echo "No Lambda configured; skipping bump."; exit 0; }
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          CURRENT=$(aws lambda get-function-configuration \
+            --function-name "$FUNCTION_NAME" --region "$AWS_REGION" \
+            --query 'Environment.Variables' --output json 2>/dev/null || echo '{}')
+          UPDATED=$(python3 -c "
+          import json
+          env = json.loads('''$CURRENT''')
+          env['DOCS_VERSION'] = '$TIMESTAMP'
+          print(json.dumps({'Variables': env}))
+          ")
+          aws lambda update-function-configuration \
+            --function-name "$FUNCTION_NAME" --region "$AWS_REGION" \
+            --environment "$UPDATED" --query FunctionArn --output text \
+          && echo "Bumped DOCS_VERSION=$TIMESTAMP on $FUNCTION_NAME" \
+          || echo "Warning: could not update Lambda DOCS_VERSION"
