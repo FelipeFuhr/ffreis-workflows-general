@@ -30,21 +30,33 @@ on:
 
 jobs:
   workflows-policy:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-workflows-policy.yml
 
 
   actionlint:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-actionlint.yml
     with:
       working-directory: .
 
   gitleaks:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     uses: ./.github/workflows/general-gitleaks.yml
     with:
       working-directory: .
       upload-sarif: true
 
   osv-scanner:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     uses: ./.github/workflows/general-osv-scanner.yml
     with:
       working-directory: .
@@ -52,16 +64,24 @@ jobs:
 
   semantic-pr:
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "feat: self-test"
 
   commit-messages:
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-commit-messages.yml
 
   labeler:
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     uses: ./.github/workflows/general-labeler.yml
     with:
       dry-run: true
@@ -74,11 +94,15 @@ jobs:
         ]
 
   shellcheck:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-shellcheck.yml
     with:
       working-directory: .
 
   code-quality:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-code-quality.yml
     with:
       working-directory: examples/hello
@@ -86,12 +110,18 @@ jobs:
       enable-shell: true
 
   pre-commit:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-pre-commit.yml
     with:
       working-directory: .
       require-config: false
 
   stale:
+    permissions:
+      contents: read
+      issues: write
+      pull-requests: write
     uses: ./.github/workflows/general-stale.yml
     with:
       dry-run: true
@@ -119,6 +149,10 @@ jobs:
       upload-sarif: true
 
   codeql:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
     uses: ./.github/workflows/general-codeql.yml
     with:
       languages: actions
@@ -126,18 +160,28 @@ jobs:
       upload-sarif: false
 
   trivy-fs:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     uses: ./.github/workflows/general-scan-trivy-fs.yml
     with:
       scan-ref: examples/hello
       upload-sarif: false
 
   grype-fs:
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     uses: ./.github/workflows/general-scan-grype-fs.yml
     with:
       path: examples/hello
       upload-sarif: false
 
   run-commands:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-run-commands.yml
     with:
       working-directory: examples/hello
@@ -148,6 +192,8 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-http-smoke.yml
     with:
       base-url: "https://example.com"
@@ -157,6 +203,8 @@ jobs:
 
   website-dispatch:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-website-dispatch.yml
     with:
       website_name: hello
@@ -165,6 +213,8 @@ jobs:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   lefthook-minimal:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-lefthook.yml
     with:
       working-directory: examples/hello
