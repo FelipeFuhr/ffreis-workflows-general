@@ -89,14 +89,14 @@ jobs:
 
       - name: CodeQL init (default queries)
         if: inputs.query-suite == ''
-        uses: github/codeql-action/init@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61 # v4
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           languages: ${{ steps.vars.outputs.languages }}
           source-root: ${{ steps.vars.outputs.source_root }}
 
       - name: CodeQL init (custom queries)
         if: inputs.query-suite != ''
-        uses: github/codeql-action/init@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61 # v4
+        uses: github/codeql-action/init@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           languages: ${{ steps.vars.outputs.languages }}
           source-root: ${{ steps.vars.outputs.source_root }}
@@ -104,7 +104,7 @@ jobs:
 
       - name: Autobuild
         if: inputs.build-command == '' && steps.vars.outputs.languages != 'actions'
-        uses: github/codeql-action/autobuild@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61 # v4
+        uses: github/codeql-action/autobuild@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
 
       - name: Build (manual)
         if: inputs.build-command != ''
@@ -115,7 +115,7 @@ jobs:
           bash -lc "$BUILD_COMMAND"
 
       - name: CodeQL analyze
-        uses: github/codeql-action/analyze@b25d0ebf40e5b63ee81e1bd6e5d2a12b7c2aeb61 # v4
+        uses: github/codeql-action/analyze@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
         with:
           category: "/language:${{ steps.vars.outputs.languages }}"
           upload: ${{ inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
