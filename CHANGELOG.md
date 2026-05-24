@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.2.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.0...v1.2.1) (2026-05-24)
+
+
+### Bug Fixes
+
+* bump github/codeql-action pin past orphaned SHA b25d0ebf → v4.36.0 ([#45](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/45)) ([39fe386](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/39fe386ceda4d99d22af96c1c85e71639588d5f3))
+* **ci:** remove duplicate timeout-minutes in dependency-review ([#43](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/43)) ([10b1d21](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/10b1d2131317de5df0747f82c6e1c6dab6a97244))
+
 ## [1.2.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.1.0...v1.2.0) (2026-05-22)
 
 
