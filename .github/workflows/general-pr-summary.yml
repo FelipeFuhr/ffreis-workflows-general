@@ -9,9 +9,6 @@ on:
         type: number
         default: 15
 
-permissions:
-  contents: read
-
 jobs:
   pr-summary:
     if: github.event.action == 'opened' && github.event.pull_request.body == ''

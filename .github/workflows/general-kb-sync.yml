@@ -41,14 +41,14 @@ on:
       AWS_KB_SYNC_ROLE_ARN:
         required: true
 
-permissions:
-  contents: read
-
 jobs:
   sync:
     timeout-minutes: ${{ inputs.timeout-minutes }}
     name: Sync KB docs to S3
     runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+      contents: read
 
     steps:
       - name: Harden the runner (Audit all outbound calls)

@@ -28,10 +28,6 @@ on:
                 required: false
                 type: number
                 default: 15
-permissions:
-    contents: read
-
-
 
 jobs:
   labeler:

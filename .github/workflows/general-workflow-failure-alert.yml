@@ -9,9 +9,6 @@ on:
         type: number
         default: 15
 
-permissions:
-  pull-requests: write
-
 jobs:
   alert:
     runs-on: ubuntu-latest

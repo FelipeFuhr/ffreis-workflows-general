@@ -37,8 +37,6 @@ on:
         required: false
         type: number
         default: 15
-permissions:
-  contents: read
 
 jobs:
   go:
@@ -46,6 +44,8 @@ jobs:
     name: Go (gofmt + complexity + golangci-lint + test)
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}
@@ -130,6 +130,8 @@ jobs:
     name: Shell (shfmt + shellcheck + safety gate)
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
     defaults:
       run:
         working-directory: ${{ inputs.working-directory }}

@@ -17,14 +17,13 @@ on:
         type: number
         default: 15
 
-permissions:
-  contents: read
-
 jobs:
   semgrep:
     name: Semgrep SAST
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes || 15 }}
+    permissions:
+      contents: read
 
     defaults:
       run:

@@ -19,14 +19,13 @@ on:
       DISPATCH_TOKEN:
         required: false
 
-permissions:
-  contents: read
-
 jobs:
   dispatch:
     name: Dispatch
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    permissions:
+      contents: read
 
     steps:
       - name: Dispatch website deploy request

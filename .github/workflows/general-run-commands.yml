@@ -91,14 +91,13 @@ on:
         type: string
         default: ""
 
-permissions:
-  contents: read
-
 jobs:
   run:
     name: Run
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
 
     defaults:
       run:

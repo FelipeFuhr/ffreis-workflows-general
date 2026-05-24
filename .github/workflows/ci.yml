@@ -4,19 +4,19 @@ on:
   pull_request:
     branches: [main]
 
-permissions:
-  contents: read
-  packages: read
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   workflows-policy:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-workflows-policy.yml
 
   actionlint:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-actionlint.yml
 
   osv-scanner:
@@ -31,12 +31,16 @@ jobs:
 
   semantic-pr:
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "feat: self-test"
 
   semantic-pr-with-scope:
     if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "fix(ci): self-test with scope"
@@ -59,17 +63,23 @@ jobs:
         ]
 
   shellcheck:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-shellcheck.yml
     with:
       working-directory: .
 
   code-quality:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-code-quality.yml
     with:
       working-directory: .
       enable-shell: false
 
   code-quality-examples:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-code-quality.yml
     with:
       working-directory: examples/hello
@@ -77,6 +87,8 @@ jobs:
       enable-shell: true
 
   pre-commit:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-pre-commit.yml
     with:
       working-directory: .
@@ -186,6 +198,8 @@ jobs:
       run-pre-push: false
 
   semgrep:
+    permissions:
+      contents: read
     uses: ./.github/workflows/general-semgrep.yml
     with:
       working-directory: examples/hello
