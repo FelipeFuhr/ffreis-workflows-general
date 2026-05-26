@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.2.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.1...v1.2.2) (2026-05-26)
+
+
+### Bug Fixes
+
+* ensure grype.sarif is written ([#51](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/51)) ([7393724](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/7393724e7da9494df981522dfaf8cdb3d20f3a96))
+
 ## [1.2.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.0...v1.2.1) (2026-05-24)
 
 
