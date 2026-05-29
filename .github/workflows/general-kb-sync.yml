@@ -16,7 +16,7 @@ name: General / KB Sync
 #       with:
 #         kb_name: petlook-kb-imagegen
 #       secrets:
-#         CI_REPO_READ_TOKEN: ${{ secrets.CI_REPO_READ_TOKEN }}
+#         CI_REPO_READ_TOKEN: ${{ secrets.FLEET_READ_TOKEN }}
 #         AWS_KB_SYNC_ROLE_ARN: ${{ secrets.AWS_KB_SYNC_ROLE_ARN }}
 
 on:
@@ -90,7 +90,7 @@ jobs:
         with:
           repository: ${{ format('{0}/ffreis-website-inventory', github.repository_owner) }}
           path: inventory
-          token: ${{ secrets.CI_REPO_READ_TOKEN }}
+          token: ${{ secrets.FLEET_READ_TOKEN }}
 
       - name: Install pyyaml
         if: steps.routing.outputs.skip != 'true'
