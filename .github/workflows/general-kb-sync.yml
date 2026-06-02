@@ -35,6 +35,11 @@ on:
         required: false
         type: number
         default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
     secrets:
       CI_REPO_READ_TOKEN:
         required: true
@@ -43,6 +48,7 @@ on:
 
 jobs:
   sync:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     name: Sync KB docs to S3
     runs-on: ubuntu-latest
