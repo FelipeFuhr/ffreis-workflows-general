@@ -21,12 +21,18 @@ on:
         required: false
         type: number
         default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
     secrets:
       SMOKE_BASE_URL:
         required: false
 
 jobs:
   smoke:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: Smoke
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
