@@ -23,6 +23,11 @@ on:
         required: false
         type: string
         default: "main"
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
     secrets:
       RELEASE_PLEASE_TOKEN:
         description: Optional token (PAT) to run release-please; defaults to github.token
@@ -30,12 +35,14 @@ on:
 
 jobs:
   workflows-policy:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-workflows-policy.yml
 
 
   actionlint:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-actionlint.yml
@@ -43,6 +50,7 @@ jobs:
       working-directory: .
 
   gitleaks:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
       actions: read
@@ -53,6 +61,7 @@ jobs:
       upload-sarif: true
 
   osv-scanner:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
       actions: read
@@ -94,6 +103,7 @@ jobs:
         ]
 
   shellcheck:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-shellcheck.yml
@@ -101,6 +111,7 @@ jobs:
       working-directory: .
 
   code-quality:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-code-quality.yml
@@ -110,6 +121,7 @@ jobs:
       enable-shell: true
 
   pre-commit:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-pre-commit.yml
@@ -118,6 +130,7 @@ jobs:
       require-config: false
 
   stale:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
       issues: write
@@ -129,6 +142,7 @@ jobs:
       close-days: 1
 
   release-please:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: write
       pull-requests: write
@@ -140,6 +154,7 @@ jobs:
       manifest-file: examples/hello/release-please-manifest.json
 
   scorecard:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       actions: read
       security-events: write
@@ -149,6 +164,7 @@ jobs:
       upload-sarif: true
 
   codeql:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       actions: read
       contents: read
@@ -160,6 +176,7 @@ jobs:
       upload-sarif: false
 
   trivy-fs:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
       actions: read
@@ -170,6 +187,7 @@ jobs:
       upload-sarif: false
 
   grype-fs:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
       actions: read
@@ -180,6 +198,7 @@ jobs:
       upload-sarif: false
 
   run-commands:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-run-commands.yml
@@ -192,6 +211,7 @@ jobs:
         node --version >/dev/null
 
   http-smoke:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-http-smoke.yml
@@ -213,6 +233,7 @@ jobs:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
   lefthook-minimal:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     permissions:
       contents: read
     uses: ./.github/workflows/general-lefthook.yml
