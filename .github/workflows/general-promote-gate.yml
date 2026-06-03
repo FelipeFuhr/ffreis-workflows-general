@@ -40,21 +40,33 @@ jobs:
       # A PR that only touches .github/ (CI/workflow config) promotes no content,
       # so the dev-site health is irrelevant. Skip the check but still PASS, so the
       # required status check stays satisfied without weakening branch protection.
+      # Detection uses git (covered by `contents: read`) rather than the PR-files
+      # API, which would need `pull-requests: read` the caller doesn't grant.
+      - name: Checkout (for CI-only change detection)
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          fetch-depth: 0
+
       - name: Detect CI-only change (nothing to promote)
         id: scope
         if: github.event_name == 'pull_request'
         env:
-          GH_TOKEN: ${{ github.token }}
-          REPO: ${{ github.repository }}
-          PR: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
         run: |
           set -euo pipefail
-          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename' 2>/dev/null || true)
+          files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true)
+          if [ -z "$files" ]; then
+            git fetch --no-tags --quiet origin "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true
+            files=$(git diff --name-only "$BASE_SHA" "$HEAD_SHA" 2>/dev/null || true)
+          fi
           non_github=$(printf '%s\n' "$files" | grep -cvE '^\.github/' || true)
           if [ -n "$files" ] && [ "${non_github:-1}" -eq 0 ]; then
             echo "ci_only=true" >> "$GITHUB_OUTPUT"
             echo "All changed files are under .github/ — CI-only change, nothing to promote. Gate passes."
           else
+            echo "Content change detected (${non_github:-?} non-.github file(s)) — running dev-site check."
             echo "ci_only=false" >> "$GITHUB_OUTPUT"
           fi
 
