@@ -38,14 +38,6 @@ jobs:
     with:
       title: "feat: self-test"
 
-  semantic-pr-with-scope:
-    if: github.event_name == 'pull_request'
-    permissions:
-      contents: read
-    uses: ./.github/workflows/general-semantic-pr.yml
-    with:
-      title: "fix(ci): self-test with scope"
-
   labeler:
     if: github.event_name == 'pull_request'
     permissions:
@@ -139,26 +131,9 @@ jobs:
       source-root: .github/workflows
       upload-sarif: false
 
-  trivy-fs:
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/general-scan-trivy-fs.yml
-    with:
-      scan-ref: examples/hello
-      upload-sarif: false
-
-  grype-fs:
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/general-scan-grype-fs.yml
-    with:
-      path: examples/hello
-      upload-sarif: false
-
+  # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
+  # (the consolidated bundle exercises all three). Also keeps ci.yml within
+  # GitHub's 20-reusable-workflows-per-file limit (was 23 -> startup_failure).
   security-fs:
     permissions:
       actions: read
@@ -225,13 +200,3 @@ jobs:
       dry_run: true
     secrets:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-  gitleaks:
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/general-gitleaks.yml
-    with:
-      working-directory: .
-      gitleaks-version: "8.30.1"
-      upload-sarif: false
