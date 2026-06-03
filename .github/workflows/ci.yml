@@ -16,6 +16,7 @@ jobs:
       contents: read
       actions: read
       security-events: write
+      id-token: write
     uses: ./.github/workflows/general-scorecard.yml
     with:
       upload-sarif: true
