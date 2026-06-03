@@ -96,7 +96,7 @@ jobs:
         with:
           repository: ${{ format('{0}/ffreis-website-inventory', github.repository_owner) }}
           path: inventory
-          token: ${{ secrets.FLEET_READ_TOKEN }}
+          token: ${{ secrets.CI_REPO_READ_TOKEN }}
 
       - name: Install pyyaml
         if: steps.routing.outputs.skip != 'true'
