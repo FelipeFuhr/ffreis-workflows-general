@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.3.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.0...v1.3.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ci:** reference declared input secret names in reusable workflows ([#77](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/77)) ([4ceb370](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/4ceb3700a2b6fa17ffbb9979b2b8c1cabb4e3487))
+* **security-fs:** retry grype on transient empty SARIF; trim redundant ci.yml self-tests ([#79](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/79)) ([082210e](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/082210e4ff52877b0f3c5398132ed5defdbeed21))
+
 ## [1.3.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.3...v1.3.0) (2026-06-03)
 
 
