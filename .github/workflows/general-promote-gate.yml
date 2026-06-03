@@ -37,7 +37,28 @@ jobs:
         with:
           egress-policy: audit
 
+      # A PR that only touches .github/ (CI/workflow config) promotes no content,
+      # so the dev-site health is irrelevant. Skip the check but still PASS, so the
+      # required status check stays satisfied without weakening branch protection.
+      - name: Detect CI-only change (nothing to promote)
+        id: scope
+        if: github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REPO: ${{ github.repository }}
+          PR: ${{ github.event.pull_request.number }}
+        run: |
+          set -euo pipefail
+          files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename' 2>/dev/null || true)
+          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '^\.github/'; then
+            echo "ci_only=true" >> "$GITHUB_OUTPUT"
+            echo "All changed files are under .github/ — CI-only change, nothing to promote. Gate passes."
+          else
+            echo "ci_only=false" >> "$GITHUB_OUTPUT"
+          fi
+
       - name: Check dev site is healthy
+        if: steps.scope.outputs.ci_only != 'true'
         env:
           BASE: ${{ inputs.dev_url }}
           PATHS: ${{ inputs.paths }}
