@@ -33,27 +33,3 @@ jobs:
       config-file: examples/hello/release-please-config.json
       manifest-file: examples/hello/release-please-manifest.json
 
-  scorecard:
-    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
-    permissions:
-      contents: read
-      actions: read
-      security-events: write
-    uses: ./.github/workflows/general-scorecard.yml
-    with:
-      upload-sarif: true
-
-  codeql:
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/general-codeql.yml
-    with:
-      languages: actions
-      source-root: .github/workflows
-      upload-sarif: false
-
-  # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
-  # (the consolidated bundle exercises all three). Also keeps ci.yml within
-  # GitHub's 20-reusable-workflows-per-file limit (was 23 -> startup_failure).
