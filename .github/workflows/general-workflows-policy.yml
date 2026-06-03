@@ -36,6 +36,11 @@ on:
         required: false
         type: boolean
         default: false
+      draft-gate-exempt:
+        description: Extra comma-separated workflow names/stems exempt from draft-gating (always-run)
+        required: false
+        type: string
+        default: ""
 
 jobs:
   policy:
@@ -53,6 +58,62 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Draft-gating policy
+        env:
+          DRAFT_GATE_EXEMPT: ${{ inputs.draft-gate-exempt }}
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet pyyaml >/dev/null 2>&1 || true
+          python3 - <<'PY'
+          # Mirror of quality-kit/scripts/ci_draft_policy.py — keep the rule in sync.
+          import glob, os, sys
+          try:
+              import yaml
+          except ImportError:
+              print("::warning::pyyaml unavailable; skipping draft-gating policy"); sys.exit(0)
+          EXEMPT = set("release release-please scorecard stale labeler dependabot scheduled drift drift-detect codeql".split())
+          EXEMPT |= {x.strip().lower() for x in os.environ.get("DRAFT_GATE_EXEMPT", "").split(",") if x.strip()}
+          GATE = ("draft", "run_on_draft", "github.event_name", "github.ref")
+          viol = []
+          for f in sorted(glob.glob(".github/workflows/*.yml") + glob.glob(".github/workflows/*.yaml")):
+              try:
+                  d = yaml.safe_load(open(f, encoding="utf-8"))
+              except Exception as e:
+                  viol.append(f"{f}: parse error {e}"); continue
+              if not isinstance(d, dict):
+                  continue
+              stem = os.path.splitext(os.path.basename(f))[0].lower(); nm = str(d.get("name", "")).lower()
+              if stem in EXEMPT or nm in EXEMPT:
+                  continue
+              on = d.get("on", d.get(True)); pr = None; has = False
+              if isinstance(on, dict):
+                  has = "pull_request" in on or "pull_request_target" in on
+                  pr = on.get("pull_request", on.get("pull_request_target"))
+              elif isinstance(on, list):
+                  has = "pull_request" in on
+              elif isinstance(on, str):
+                  has = on == "pull_request"
+              if not has:
+                  continue
+              types = pr.get("types", []) if isinstance(pr, dict) else []
+              if "ready_for_review" not in (types or []):
+                  viol.append(f"{f}: pull_request trigger must include ready_for_review")
+              for jid, job in (d.get("jobs", {}) or {}).items():
+                  if not isinstance(job, dict):
+                      continue
+                  if str(job.get("uses", "")).strip() or "needs" in job:
+                      continue
+                  if not any(t in str(job.get("if", "")) for t in GATE):
+                      viol.append(f"{f}: job '{jid}' is not draft-gated")
+              conc = d.get("concurrency"); cip = str(conc.get("cancel-in-progress", "")).lower() if isinstance(conc, dict) else ""
+              if "true" not in cip and "pull_request" not in cip:
+                  viol.append(f"{f}: missing concurrency.cancel-in-progress: true")
+          for v in viol:
+              print("::error::[draft-gate] " + v)
+          print(f"draft-gating policy: {len(viol)} violation(s)")
+          sys.exit(1 if viol else 0)
+          PY
 
       - name: Validate workflows policy
         env:
