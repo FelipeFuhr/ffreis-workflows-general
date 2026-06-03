@@ -1,5 +1,18 @@
 # Changelog
 
+## [1.3.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.3...v1.3.0) (2026-06-03)
+
+
+### Features
+
+* **promote-gate:** pass for CI-only (.github/) PRs — nothing to promote ([#71](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/71)) ([99da6e8](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/99da6e813180cd6b6c7923112b0e31969a2fb067))
+
+
+### Bug Fixes
+
+* **promote-gate:** detect CI-only via git diff (contents:read), not gh api ([#74](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/74)) ([2fdb717](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/2fdb7171ac630a6ce0b21fe7e641644310da0f59))
+* **promote-gate:** robust CI-only detection (grep -c count, not ! grep -q) ([#73](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/73)) ([a09060e](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/a09060e4a41ab2700e46a31a6f92d26876493940))
+
 ## [1.2.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.2...v1.2.3) (2026-05-26)
 
 
