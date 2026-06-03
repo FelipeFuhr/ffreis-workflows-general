@@ -10,10 +10,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  probe:
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
+  actionlint:
     permissions:
       contents: read
-    steps:
-      - run: echo "probe ok"
+    uses: ./.github/workflows/general-actionlint.yml
+
+  shellcheck:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-shellcheck.yml
+
+  semgrep:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-semgrep.yml
+    with:
+      working-directory: examples/hello
+
+  security-fs:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/general-security-fs.yml
+    with:
+      working-directory: examples/hello
+      upload-sarif: false
+
+  website-dispatch:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-website-dispatch.yml
+    with:
+      website_name: hello
+      dry_run: true
+    secrets:
+      DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
