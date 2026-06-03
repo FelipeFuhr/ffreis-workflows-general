@@ -10,17 +10,13 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  codeql:
+  scorecard:
+    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
-      actions: read
       contents: read
+      actions: read
       security-events: write
-    uses: ./.github/workflows/general-codeql.yml
+    uses: ./.github/workflows/general-scorecard.yml
     with:
-      languages: actions
-      source-root: .github/workflows
-      upload-sarif: false
+      upload-sarif: true
 
-  # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
-  # (the consolidated bundle exercises all three). Also keeps ci.yml within
-  # GitHub's 20-reusable-workflows-per-file limit (was 23 -> startup_failure).
