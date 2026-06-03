@@ -50,7 +50,8 @@ jobs:
         run: |
           set -euo pipefail
           files=$(gh api "repos/${REPO}/pulls/${PR}/files" --paginate --jq '.[].filename' 2>/dev/null || true)
-          if [ -n "$files" ] && ! printf '%s\n' "$files" | grep -qvE '^\.github/'; then
+          non_github=$(printf '%s\n' "$files" | grep -cvE '^\.github/' || true)
+          if [ -n "$files" ] && [ "${non_github:-1}" -eq 0 ]; then
             echo "ci_only=true" >> "$GITHUB_OUTPUT"
             echo "All changed files are under .github/ — CI-only change, nothing to promote. Gate passes."
           else
