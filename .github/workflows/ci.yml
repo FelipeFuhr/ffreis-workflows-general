@@ -159,6 +159,7 @@ jobs:
       path: examples/hello
       upload-sarif: false
 
+  # Self-test for the consolidated fs-security bundle (Trivy+Grype+gitleaks).
   security-fs:
     permissions:
       actions: read
