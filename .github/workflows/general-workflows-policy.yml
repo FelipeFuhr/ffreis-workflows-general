@@ -72,7 +72,7 @@ jobs:
               import yaml
           except ImportError:
               print("::warning::pyyaml unavailable; skipping draft-gating policy"); sys.exit(0)
-          EXEMPT = set("release release-please scorecard stale labeler dependabot scheduled drift drift-detect codeql".split())
+          EXEMPT = set("release release-please scorecard stale labeler dependabot dependency-review scheduled drift drift-detect codeql".split())
           EXEMPT |= {x.strip().lower() for x in os.environ.get("DRAFT_GATE_EXEMPT", "").split(",") if x.strip()}
           GATE = ("draft", "run_on_draft", "github.event_name", "github.ref")
           viol = []
