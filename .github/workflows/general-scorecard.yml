@@ -59,7 +59,12 @@ jobs:
 
   scorecard-publish:
     # The scorecard-action has no "publish-only" mode, so the scan must run again here.
-    # This keeps id-token:write isolated to this job (only minted when publish-results is true).
+    # NOTE: the id-token:write below is validated by GitHub against the CALLER's grant
+    # at DISPATCH time — BEFORE this `if:` is evaluated. So EVERY caller of this workflow
+    # MUST grant `id-token: write` (even callers that pass publish-results:false), or the
+    # caller's whole run fails with `startup_failure`. (A cleaner fix would split this job
+    # into a separate general-scorecard-publish.yml so non-publishing callers needn't grant
+    # id-token — tracked as a follow-up.)
     name: Publish Scorecard Results
     if: inputs.publish-results
     needs: scorecard
