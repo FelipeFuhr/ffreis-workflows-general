@@ -10,26 +10,17 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  stale:
+  codeql:
     permissions:
+      actions: read
       contents: read
-      issues: write
-      pull-requests: write
-    uses: ./.github/workflows/general-stale.yml
+      security-events: write
+    uses: ./.github/workflows/general-codeql.yml
     with:
-      dry-run: true
-      stale-days: 1
-      close-days: 1
+      languages: actions
+      source-root: .github/workflows
+      upload-sarif: false
 
-  release-please:
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-    permissions:
-      contents: write
-      pull-requests: write
-      issues: write
-    uses: ./.github/workflows/general-release-please.yml
-    with:
-      dry-run: true
-      config-file: examples/hello/release-please-config.json
-      manifest-file: examples/hello/release-please-manifest.json
-
+  # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
+  # (the consolidated bundle exercises all three). Also keeps ci.yml within
+  # GitHub's 20-reusable-workflows-per-file limit (was 23 -> startup_failure).
