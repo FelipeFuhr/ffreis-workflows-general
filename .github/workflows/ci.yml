@@ -111,19 +111,26 @@ jobs:
       manifest-file: examples/hello/release-please-manifest.json
 
   scorecard:
-    # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
-    # id-token: write required even though we don't publish: general-scorecard.yml's
-    # scorecard-publish job DECLARES id-token:write, and GitHub validates a called
-    # workflow's job permissions against the caller's grant at DISPATCH (before `if:`),
-    # so omitting it makes the whole run startup_failure. See fix note in that workflow.
+    # scan-only — general-scorecard.yml no longer needs id-token (publish was split out).
     permissions:
       contents: read
       actions: read
       security-events: write
-      id-token: write
     uses: ./.github/workflows/general-scorecard.yml
     with:
       upload-sarif: true
+
+  scorecard-publish:
+    # Self-test for the publish workflow. Its job is gated off on pull_request, so this
+    # exercises the workflow_call interface (incl. the id-token grant) without publishing.
+    permissions:
+      id-token: write
+      contents: read
+      actions: read
+      security-events: write
+    uses: ./.github/workflows/general-scorecard-publish.yml
+    with:
+      upload-sarif: false
 
   codeql:
     permissions:
