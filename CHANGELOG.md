@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.2...v1.4.0) (2026-06-04)
+
+
+### Features
+
+* **ci:** consolidate quality (live/seo) + lefthook complex/release reusables ([#80](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/80)) ([af85524](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/af855243d05e036007e857272f2e267623ac9b01))
+
 ## [1.3.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.1...v1.3.2) (2026-06-03)
 
 
