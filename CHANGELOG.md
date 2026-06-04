@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.0...v1.4.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **lefthook:** install golangci-lint v2.11.4 (go1.25-compatible) ([#86](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/86)) ([5037bfe](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/5037bfec00fda302746bb966f78c1de375375b64))
+
 ## [1.4.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.2...v1.4.0) (2026-06-04)
 
 
