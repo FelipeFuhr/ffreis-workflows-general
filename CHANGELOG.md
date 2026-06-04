@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.3.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.1...v1.3.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ci:** grant id-token:write to scorecard caller (fixes ci.yml startup_failure) ([#82](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/82)) ([0527768](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/052776800d7289f63c1efe678af1268b62117e16))
+
 ## [1.3.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.0...v1.3.1) (2026-06-03)
 
 
