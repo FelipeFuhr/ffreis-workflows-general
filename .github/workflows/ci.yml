@@ -195,6 +195,47 @@ jobs:
       run-commit-msg: false
       run-pre-push: false
 
+  lefthook-complex:
+    # Exercises general-lefthook-complex.yml against this repo's own root
+    # lefthook.yml (which carries self-test complex/release stub groups).
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-lefthook-complex.yml
+    with:
+      working-directory: .
+      tier: complex
+      setup-go: false
+      install-golangci-lint: false
+      install-govulncheck: false
+      install-gitleaks: false
+      lefthook-bootstrap-command: "mkdir -p .bin && curl -fsSL https://github.com/evilmartians/lefthook/releases/download/v1.7.10/lefthook_1.7.10_Linux_x86_64 -o .bin/lefthook && chmod +x .bin/lefthook"
+      lefthook-bin: ".bin/lefthook"
+
+  quality-live:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-quality-live.yml
+    with:
+      site-url: "https://example.com"
+      enable-lighthouse: false
+      enable-accessibility: false
+      enable-links: false
+      enable-seo: false
+
+  quality-seo:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-quality-seo.yml
+    with:
+      base-url: "https://example.com"
+      skip-build: true
+      dist-path: examples/hello
+      enable-structured-data: false
+      enable-meta: false
+      enable-hreflang: false
+      enable-canonical: false
+      enable-sitemap: false
+
   semgrep:
     permissions:
       contents: read

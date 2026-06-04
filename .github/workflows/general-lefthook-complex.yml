@@ -1,0 +1,161 @@
+name: General / Lefthook Complex
+
+# Runs the heavy lefthook tiers (`complex` / `release`) defined in the shared
+# ffreis-platform-standards lefthook configs. This is the MANUAL counterpart to
+# general-lefthook.yml (which runs the always-on `pre-commit` simple set):
+# callers wire this behind a `workflow_dispatch` job, never on pull_request.
+# The same tiers run locally before a draft->ready promotion via
+# quality-kit/scripts/pr-ready.sh.
+#
+# Unlike the simple set, the complex/release groups are Makefile-target based and
+# operate on the whole tree, so they are invoked with `--all-files`.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Working directory (repo root by default)"
+        type: string
+        default: "."
+      tier:
+        description: "Which heavy lefthook group to run: complex (tier-1) or release (tier-2)"
+        type: string
+        default: "complex"
+      setup-go:
+        description: "Set up Go (for Go repos whose complex targets need it)"
+        type: boolean
+        default: true
+      go-version:
+        description: "Go version (optional; overrides go-version-file)"
+        type: string
+        default: ""
+      go-version-file:
+        description: "Go version file (go.mod by default)"
+        type: string
+        default: "go.mod"
+      install-golangci-lint:
+        description: "Install golangci-lint"
+        type: boolean
+        default: false
+      install-govulncheck:
+        description: "Install govulncheck (Go vuln scan in complex)"
+        type: boolean
+        default: true
+      install-gitleaks:
+        description: "Install gitleaks (full-tree secret scan in complex)"
+        type: boolean
+        default: true
+      gitleaks-version:
+        description: "gitleaks version to install (without leading v)"
+        type: string
+        default: "8.24.2"
+      setup-commands:
+        description: >
+          Extra shell run before lefthook, for language toolchain prep the
+          complex/release targets need (e.g. rustup component add clippy, uv sync,
+          cargo install cargo-mutants). Runs in working-directory.
+        type: string
+        default: ""
+      lefthook-bootstrap-command:
+        description: "Command to fetch/build lefthook binary"
+        type: string
+        default: "make lefthook-bootstrap"
+      lefthook-bin:
+        description: "Path to lefthook binary (relative to working-directory)"
+        type: string
+        default: ".bin/lefthook"
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 45
+
+jobs:
+  lefthook-complex:
+    name: Lefthook (${{ inputs.tier }})
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+
+    defaults:
+      run:
+        working-directory: ${{ inputs.working-directory }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Validate tier input
+        env:
+          TIER: ${{ inputs.tier }}
+        run: |
+          set -euo pipefail
+          case "$TIER" in
+            complex|release) ;;
+            *) echo "::error title=Invalid tier::tier must be 'complex' or 'release', got '$TIER'"; exit 1 ;;
+          esac
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Setup Go
+        if: inputs.setup-go
+        uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
+        with:
+          go-version: ${{ inputs.go-version }}
+          go-version-file: ${{ inputs.go-version == '' && inputs.go-version-file || '' }}
+          cache: true
+          cache-dependency-path: ${{ inputs.working-directory }}/go.sum
+
+      - name: Install hook tools
+        shell: bash
+        env:
+          INSTALL_GOLANGCI_LINT: ${{ inputs.install-golangci-lint }}
+          INSTALL_GOVULNCHECK: ${{ inputs.install-govulncheck }}
+          INSTALL_GITLEAKS: ${{ inputs.install-gitleaks }}
+          GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
+        run: |
+          set -euo pipefail
+          mkdir -p "${HOME}/.local/bin"
+          echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
+
+          if [[ "$INSTALL_GOLANGCI_LINT" == "true" ]]; then
+            GOBIN="${HOME}/.local/bin" go install github.com/golangci/golangci-lint/cmd/golangci-lint@v1.64.8
+          fi
+
+          if [[ "$INSTALL_GOVULNCHECK" == "true" ]]; then
+            GOBIN="${HOME}/.local/bin" go install golang.org/x/vuln/cmd/govulncheck@latest
+          fi
+
+          if [[ "$INSTALL_GITLEAKS" == "true" ]]; then
+            curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C "${HOME}/.local/bin" gitleaks
+          fi
+
+      - name: Extra toolchain setup
+        if: inputs.setup-commands != ''
+        shell: bash
+        env:
+          SETUP_COMMANDS: ${{ inputs.setup-commands }}
+        run: |
+          set -euo pipefail
+          eval "$SETUP_COMMANDS"
+
+      - name: Bootstrap lefthook
+        shell: bash
+        env:
+          BOOTSTRAP: ${{ inputs.lefthook-bootstrap-command }}
+        run: |
+          set -euo pipefail
+          eval "$BOOTSTRAP"
+
+      - name: Run heavy lefthook tier
+        shell: bash
+        env:
+          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
+          TIER: ${{ inputs.tier }}
+        run: |
+          set -euo pipefail
+          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run "${TIER}" --all-files

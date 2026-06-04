@@ -1,0 +1,299 @@
+name: General / Quality Live
+
+# Runs SEO and accessibility quality checks against an already-deployed site URL.
+# Intended for monthly devops monitoring — no build step required.
+# Exempt from the ci.yml exercise requirement (cannot test against a live URL in CI).
+
+on:
+  workflow_call:
+    inputs:
+      site-url:
+        description: "Base URL of the live site (e.g. https://ffreis.com)"
+        required: true
+        type: string
+      extra-urls:
+        description: >
+          Additional page paths to audit, one per line (e.g. /about\n/contact).
+          Each is appended to site-url. The root '/' is always included.
+        required: false
+        type: string
+        default: ""
+      enable-lighthouse:
+        description: "Run Lighthouse performance/SEO/accessibility audit"
+        required: false
+        type: boolean
+        default: true
+      enable-accessibility:
+        description: "Run pa11y WCAG2AA accessibility audit"
+        required: false
+        type: boolean
+        default: true
+      enable-links:
+        description: "Run lychee broken-link check"
+        required: false
+        type: boolean
+        default: true
+      enable-seo:
+        description: "Run structured-data / meta / hreflang / canonical / sitemap checks"
+        required: false
+        type: boolean
+        default: true
+      timeout-minutes:
+        description: "Maximum minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 20
+
+permissions:
+  contents: read
+
+jobs:
+  quality-live:
+    name: Quality (Live)
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes || 20 }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      # ── Build URL list ────────────────────────────────────────────────────
+
+      - name: Build URL list
+        id: urls
+        env:
+          SITE_URL: ${{ inputs.site-url }}
+          EXTRA_URLS: ${{ inputs.extra-urls }}
+        run: |
+          set -euo pipefail
+          base="${SITE_URL%/}"
+          # Always include root
+          urls="$base/"
+          while IFS= read -r path; do
+            path="${path#/}"
+            [[ -z "$path" ]] && continue
+            urls="$urls"$'\n'"$base/$path"
+          done <<< "$EXTRA_URLS"
+          {
+            echo "list<<EOF"
+            echo "$urls"
+            echo "EOF"
+            echo "first=$base/"
+          } >> "$GITHUB_OUTPUT"
+
+      # ── Lighthouse ────────────────────────────────────────────────────────
+
+      - name: Lighthouse audit
+        if: ${{ inputs.enable-lighthouse }}
+        env:
+          SITE_URL: ${{ inputs.site-url }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PYEOF'
+          import json, os, subprocess, sys, pathlib, tempfile
+
+          base = os.environ["SITE_URL"].rstrip("/")
+
+          # Create a minimal lhci config pointing at the live URL
+          cfg = {
+            "ci": {
+              "collect": {
+                "url": [base + "/"],
+                "numberOfRuns": 1,
+                "settings": {"chromeFlags": "--no-sandbox --headless"}
+              },
+              "assert": {
+                "assertions": {
+                  "categories:performance":    ["warn",  {"minScore": 0.8}],
+                  "categories:accessibility":  ["error", {"minScore": 0.9}],
+                  "categories:best-practices": ["warn",  {"minScore": 0.85}],
+                  "categories:seo":            ["error", {"minScore": 0.9}]
+                }
+              }
+            }
+          }
+          with tempfile.NamedTemporaryFile(mode="w", suffix=".json", delete=False) as f:
+              json.dump(cfg, f)
+              cfg_path = f.name
+
+          result = subprocess.run(
+              ["npx", "--yes", "@lhci/cli@0.13.0", "autorun", f"--config={cfg_path}"],
+              capture_output=False
+          )
+          sys.exit(result.returncode)
+          PYEOF
+
+      # ── pa11y accessibility ───────────────────────────────────────────────
+
+      - name: pa11y WCAG2AA
+        if: ${{ inputs.enable-accessibility }}
+        env:
+          URL_LIST: ${{ steps.urls.outputs.list }}
+        run: |
+          set -euo pipefail
+          # Create config that waits for 'body' rather than network-idle,
+          # preventing timeouts from third-party async scripts (e.g. reCAPTCHA).
+          cat > /tmp/pa11y-live.json << 'CFG'
+          {
+            "defaults": {
+              "standard": "WCAG2AA",
+              "includeWarnings": false,
+              "includeNotices": false,
+              "timeout": 60000,
+              "wait": 1000,
+              "waitFor": "body",
+              "chromeLaunchConfig": {
+                "args": ["--no-sandbox", "--disable-setuid-sandbox"]
+              }
+            }
+          }
+          CFG
+          urls=()
+          while IFS= read -r url; do
+            [[ -n "$url" ]] && urls+=("$url")
+          done <<< "$URL_LIST"
+          npx --yes pa11y-ci@3 --config /tmp/pa11y-live.json "${urls[@]}"
+
+      # ── lychee link check ─────────────────────────────────────────────────
+
+      - name: Lychee link check
+        if: ${{ inputs.enable-links }}
+        env:
+          URL_LIST: ${{ steps.urls.outputs.list }}
+        run: |
+          set -euo pipefail
+          # Install lychee
+          curl -fsSL https://github.com/lycheeverse/lychee/releases/download/v0.15.1/lychee-v0.15.1-x86_64-unknown-linux-gnu.tar.gz \
+            -o /tmp/lychee.tgz
+          tar xzf /tmp/lychee.tgz -C /tmp
+          chmod +x /tmp/lychee
+
+          mapfile -t urls <<< "$URL_LIST"
+          /tmp/lychee \
+            --timeout 30 \
+            --max-retries 3 \
+            --accept "200,204,206,301,302,429" \
+            --exclude "^mailto:" \
+            --exclude "^tel:" \
+            --exclude "^#$" \
+            --no-progress \
+            "${urls[@]}"
+
+      # ── SEO structural check ──────────────────────────────────────────────
+
+      - name: SEO structural check
+        if: ${{ inputs.enable-seo }}
+        env:
+          SITE_URL: ${{ inputs.site-url }}
+          EXTRA_URLS: ${{ inputs.extra-urls }}
+        run: |
+          python3 - <<'PYEOF'
+          import html.parser, json, os, pathlib, re, sys, urllib.request
+          import xml.etree.ElementTree as ET
+
+          base = os.environ["SITE_URL"].rstrip("/")
+          extra = os.environ.get("EXTRA_URLS", "")
+          paths = ["/"] + [("/" + p.lstrip("/")) for p in extra.splitlines() if p.strip()]
+
+          def fetch(path):
+              url = base + path
+              try:
+                  req = urllib.request.Request(url, headers={"User-Agent": "SEO-check/1.0"})
+                  with urllib.request.urlopen(req, timeout=20) as r:
+                      return r.read().decode("utf-8", errors="replace")
+              except Exception as e:
+                  return f"ERROR: {e}"
+
+          class Collector(html.parser.HTMLParser):
+              def __init__(self):
+                  super().__init__()
+                  self.tags, self.title, self._t = {}, None, False
+              def handle_starttag(self, tag, attrs):
+                  a = dict(attrs)
+                  if tag == "title": self._t = True
+                  elif tag == "meta":
+                      k = a.get("name", a.get("property", ""))
+                      if k: self.tags[k.lower()] = a.get("content", "")
+                  elif tag == "link":
+                      if a.get("rel") == "canonical": self.tags["canonical"] = a.get("href","")
+                      if a.get("rel") == "manifest":  self.tags["manifest"]  = a.get("href","")
+                      if a.get("rel") == "alternate" and a.get("hreflang"):
+                          self.tags.setdefault("hreflang", []).append(a["hreflang"])
+              def handle_data(self, d):
+                  if self._t: self.title = (self.title or "") + d
+              def handle_endtag(self, t):
+                  if t == "title": self._t = False
+
+          errors = []
+          print(f"SEO check: {base}")
+
+          for path in paths:
+              html_text = fetch(path)
+              if html_text.startswith("ERROR"):
+                  errors.append(f"{path}: fetch failed — {html_text}")
+                  continue
+
+              c = Collector(); c.feed(html_text)
+
+              # JSON-LD validation
+              lds = re.findall(r'<script[^>]*application/ld\+json[^>]*>(.*?)</script>',
+                               html_text, re.DOTALL | re.IGNORECASE)
+              for ld in lds:
+                  raw = ld.strip()
+                  if not raw:
+                      errors.append(f"{path}: empty JSON-LD block (external src= still present?)")
+                      continue
+                  try:
+                      obj = json.loads(raw)
+                      if "schema.org" not in str(obj.get("@context", "")):
+                          errors.append(f"{path}: JSON-LD missing schema.org @context")
+                      if "@type" not in obj:
+                          errors.append(f"{path}: JSON-LD missing @type")
+                  except json.JSONDecodeError as e:
+                      errors.append(f"{path}: invalid JSON-LD — {e}")
+
+              # Meta completeness
+              if not (c.title or "").strip():
+                  errors.append(f"{path}: empty or missing <title>")
+              if not c.tags.get("description"):
+                  errors.append(f"{path}: missing <meta name=description>")
+              if not (c.tags.get("canonical","")).startswith("http"):
+                  errors.append(f"{path}: missing or relative canonical URL")
+              if not c.tags.get("og:title"):
+                  errors.append(f"{path}: missing og:title")
+              if not (c.tags.get("og:image","")).startswith("http"):
+                  errors.append(f"{path}: missing or relative og:image")
+
+              # hreflang
+              langs = c.tags.get("hreflang", [])
+              if langs and "x-default" not in langs:
+                  errors.append(f"{path}: hreflang set missing x-default")
+              for href_lang in [None]:  # placeholder — full reciprocal check requires all pages
+                  pass
+
+              print(f"  {path}: {len(lds)} JSON-LD, langs={langs or '—'}, title={repr((c.title or '').strip()[:40])}")
+
+          # Sitemap
+          try:
+              req = urllib.request.Request(base + "/sitemap.xml",
+                                           headers={"User-Agent": "SEO-check/1.0"})
+              with urllib.request.urlopen(req, timeout=10) as r:
+                  tree = ET.fromstring(r.read())
+              ns = {"sm": "http://www.sitemaps.org/schemas/sitemap/0.9"}
+              locs = tree.findall(".//sm:loc", ns)
+              print(f"  /sitemap.xml: {len(locs)} URLs")
+              bad = [l.text for l in locs if l.text and not l.text.startswith("http")]
+              if bad:
+                  errors.append(f"sitemap.xml: {len(bad)} non-absolute <loc> URLs")
+          except Exception as e:
+              errors.append(f"sitemap.xml: {e}")
+
+          if errors:
+              print("\nSEO failures:", file=sys.stderr)
+              for e in errors:
+                  print(f"  {e}", file=sys.stderr)
+              sys.exit(1)
+          print("SEO check: all passed")
+          PYEOF
