@@ -44,7 +44,11 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Distinct group (literal "codeql" infix) so this never matches a caller's
+  # ${{ github.workflow }}-${{ github.ref }} group. When invoked via
+  # workflow_call, github.workflow resolves to the CALLER's name, so an
+  # identical group would deadlock the run.
+  group: ${{ github.workflow }}-codeql-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:

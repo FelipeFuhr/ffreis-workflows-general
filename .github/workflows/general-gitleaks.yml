@@ -45,7 +45,11 @@ on:
         default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Distinct group (literal "gitleaks" infix) so this never matches a caller's
+  # ${{ github.workflow }}-${{ github.ref }} group. When invoked via
+  # workflow_call, github.workflow resolves to the CALLER's name, so an
+  # identical group would deadlock ("between a top level workflow and 'gitleaks'").
+  group: ${{ github.workflow }}-gitleaks-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
