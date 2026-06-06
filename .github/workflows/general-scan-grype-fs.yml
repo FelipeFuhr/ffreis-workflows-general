@@ -54,13 +54,14 @@ jobs:
           set -euo pipefail
           PINNED_COMMIT="dee8de483dfba5b4e0bc0aa8e4ab2ce52137e490"
           SCRIPT_URL="https://raw.githubusercontent.com/anchore/grype/${PINNED_COMMIT}/install.sh"
-          mkdir -p ./bin
+          _grype_tmp="$(mktemp -d)"
           curl --fail --show-error --silent --location \
             --proto '=https' --proto-redir '=https' \
             "$SCRIPT_URL" -o /tmp/grype-install.sh
           grep -q "grype" /tmp/grype-install.sh
-          sh /tmp/grype-install.sh -b ./bin
-          ./bin/grype version
+          sh /tmp/grype-install.sh -b "$_grype_tmp" v0.114.0
+          sudo install -m 0755 "$_grype_tmp/grype" /usr/local/bin/grype
+          grype version
 
       - name: Run Grype (filesystem)
         env:
@@ -70,7 +71,7 @@ jobs:
         run: |
           set -euo pipefail
           set +e
-          ./bin/grype "dir:${SCAN_PATH}" \
+          grype "dir:${SCAN_PATH}" \
             --fail-on "$SEVERITY" \
             -o sarif \
             > grype.sarif 2> grype.stderr.log
