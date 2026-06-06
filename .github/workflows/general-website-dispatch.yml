@@ -35,7 +35,7 @@ jobs:
           WEBSITE_NAME: ${{ inputs.website_name }}
           DEPLOYER_REPO: ${{ inputs.deployer_repo }}
         with:
-          github-token: ${{ secrets.CI_DISPATCH_TOKEN }}
+          github-token: ${{ secrets.DISPATCH_TOKEN }}
           script: |
             const websiteName = process.env.WEBSITE_NAME;
             const defaultRepo = `${context.repo.owner}/ffreis-website-deployer`;
