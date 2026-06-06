@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.1...v1.4.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **grype:** install to /usr/local/bin to prevent self-scan false positives ([#88](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/88)) ([e60967b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/e60967b314a4615c1c30e2d8540cc36141dc3e02))
+
 ## [1.4.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.0...v1.4.1) (2026-06-04)
 
 
