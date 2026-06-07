@@ -208,3 +208,6 @@ __marimo__/
 
 scripts/hooks/
 scripts/bootstrap_lefthook.sh
+
+# Sonar / scanner artifacts
+.scannerwork/
