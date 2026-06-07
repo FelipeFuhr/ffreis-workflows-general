@@ -156,16 +156,6 @@ jobs:
       working-directory: examples/hello
       upload-sarif: false
 
-  security-fs:
-    permissions:
-      actions: read
-      contents: read
-      security-events: write
-    uses: ./.github/workflows/general-security-fs.yml
-    with:
-      working-directory: examples/hello
-      upload-sarif: false
-
   run-commands:
     permissions:
       actions: read
