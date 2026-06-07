@@ -9,3 +9,18 @@ pre-push:
   commands:
     lint:
       run: make lint
+
+# Self-test stubs for general-lefthook-complex.yml: this lib has no Go/Rust
+# heavy suite, so these trivial groups let ci.yml exercise
+# `lefthook run complex|release --all-files` end-to-end. Once this repo re-pins
+# to the standards release that ships base.yml's complex/release groups, those
+# merge in alongside these.
+complex:
+  commands:
+    self-test:
+      run: echo "complex tier ok"
+
+release:
+  commands:
+    self-test:
+      run: echo "release tier ok"

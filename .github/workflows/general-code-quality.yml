@@ -37,6 +37,11 @@ on:
         required: false
         type: number
         default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
 
 jobs:
   go:

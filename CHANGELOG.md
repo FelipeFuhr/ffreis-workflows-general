@@ -1,5 +1,61 @@
 # Changelog
 
+## [1.4.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.2...v1.4.3) (2026-06-06)
+
+
+### Bug Fixes
+
+* **ci:** unique concurrency group in reusable workflows to avoid caller deadlock ([#91](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/91)) ([5c855ba](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/5c855ba62fe77d82a30d30a8d68a7abe61bbc850))
+
+## [1.4.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.1...v1.4.2) (2026-06-06)
+
+
+### Bug Fixes
+
+* **grype:** install to /usr/local/bin to prevent self-scan false positives ([#88](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/88)) ([e60967b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/e60967b314a4615c1c30e2d8540cc36141dc3e02))
+
+## [1.4.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.0...v1.4.1) (2026-06-04)
+
+
+### Bug Fixes
+
+* **lefthook:** install golangci-lint v2.11.4 (go1.25-compatible) ([#86](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/86)) ([5037bfe](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/5037bfec00fda302746bb966f78c1de375375b64))
+
+## [1.4.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.2...v1.4.0) (2026-06-04)
+
+
+### Features
+
+* **ci:** consolidate quality (live/seo) + lefthook complex/release reusables ([#80](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/80)) ([af85524](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/af855243d05e036007e857272f2e267623ac9b01))
+
+## [1.3.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.1...v1.3.2) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ci:** grant id-token:write to scorecard caller (fixes ci.yml startup_failure) ([#82](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/82)) ([0527768](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/052776800d7289f63c1efe678af1268b62117e16))
+
+## [1.3.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.3.0...v1.3.1) (2026-06-03)
+
+
+### Bug Fixes
+
+* **ci:** reference declared input secret names in reusable workflows ([#77](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/77)) ([4ceb370](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/4ceb3700a2b6fa17ffbb9979b2b8c1cabb4e3487))
+* **security-fs:** retry grype on transient empty SARIF; trim redundant ci.yml self-tests ([#79](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/79)) ([082210e](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/082210e4ff52877b0f3c5398132ed5defdbeed21))
+
+## [1.3.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.3...v1.3.0) (2026-06-03)
+
+
+### Features
+
+* **promote-gate:** pass for CI-only (.github/) PRs — nothing to promote ([#71](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/71)) ([99da6e8](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/99da6e813180cd6b6c7923112b0e31969a2fb067))
+
+
+### Bug Fixes
+
+* **promote-gate:** detect CI-only via git diff (contents:read), not gh api ([#74](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/74)) ([2fdb717](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/2fdb7171ac630a6ce0b21fe7e641644310da0f59))
+* **promote-gate:** robust CI-only detection (grep -c count, not ! grep -q) ([#73](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/73)) ([a09060e](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/a09060e4a41ab2700e46a31a6f92d26876493940))
+
 ## [1.2.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.2.2...v1.2.3) (2026-05-26)
 
 

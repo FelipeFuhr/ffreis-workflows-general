@@ -4,6 +4,7 @@ on:
   push:
     branches: [main, master]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, master]
   workflow_call:
     inputs:
@@ -36,13 +37,23 @@ on:
         required: false
         type: number
         default: 60
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
+  # Distinct group (literal "codeql" infix) so this never matches a caller's
+  # ${{ github.workflow }}-${{ github.ref }} group. When invoked via
+  # workflow_call, github.workflow resolves to the CALLER's name, so an
+  # identical group would deadlock the run.
+  group: ${{ github.workflow }}-codeql-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
   analyze:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: CodeQL
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes || 15 }}

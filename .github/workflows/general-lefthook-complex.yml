@@ -1,4 +1,14 @@
-name: General / Lefthook
+name: General / Lefthook Complex
+
+# Runs the heavy lefthook tiers (`complex` / `release`) defined in the shared
+# ffreis-platform-standards lefthook configs. This is the MANUAL counterpart to
+# general-lefthook.yml (which runs the always-on `pre-commit` simple set):
+# callers wire this behind a `workflow_dispatch` job, never on pull_request.
+# The same tiers run locally before a draft->ready promotion via
+# quality-kit/scripts/pr-ready.sh.
+#
+# Unlike the simple set, the complex/release groups are Makefile-target based and
+# operate on the whole tree, so they are invoked with `--all-files`.
 
 on:
   workflow_call:
@@ -7,6 +17,14 @@ on:
         description: "Working directory (repo root by default)"
         type: string
         default: "."
+      tier:
+        description: "Which heavy lefthook group to run: complex (tier-1) or release (tier-2)"
+        type: string
+        default: "complex"
+      setup-go:
+        description: "Set up Go (for Go repos whose complex targets need it)"
+        type: boolean
+        default: true
       go-version:
         description: "Go version (optional; overrides go-version-file)"
         type: string
@@ -16,64 +34,45 @@ on:
         type: string
         default: "go.mod"
       install-golangci-lint:
-        description: "Install golangci-lint (Go)"
-        type: boolean
-        default: true
-      install-govulncheck:
-        description: "Install govulncheck (Go)"
+        description: "Install golangci-lint"
         type: boolean
         default: false
+      install-govulncheck:
+        description: "Install govulncheck (Go vuln scan in complex)"
+        type: boolean
+        default: true
       install-gitleaks:
-        description: "Install gitleaks"
+        description: "Install gitleaks (full-tree secret scan in complex)"
         type: boolean
         default: true
       gitleaks-version:
         description: "gitleaks version to install (without leading v)"
         type: string
         default: "8.24.2"
+      setup-commands:
+        description: >
+          Extra shell run before lefthook, for language toolchain prep the
+          complex/release targets need (e.g. rustup component add clippy, uv sync,
+          cargo install cargo-mutants). Runs in working-directory.
+        type: string
+        default: ""
       lefthook-bootstrap-command:
-        description: "Command to fetch/build lefthook binary (e.g. 'make lefthook-bootstrap')"
+        description: "Command to fetch/build lefthook binary"
         type: string
         default: "make lefthook-bootstrap"
       lefthook-bin:
         description: "Path to lefthook binary (relative to working-directory)"
         type: string
         default: ".bin/lefthook"
-      stage-files:
-        description: "Stage files before running staged hooks"
-        type: boolean
-        default: true
-      run-pre-commit:
-        description: "Run lefthook pre-commit"
-        type: boolean
-        default: true
-      run-commit-msg:
-        description: "Run lefthook commit-msg using a temp message"
-        type: boolean
-        default: true
-      run-pre-push:
-        description: "Run lefthook pre-push"
-        type: boolean
-        default: false
-      commit-msg-text:
-        description: "Commit message used to validate the commit-msg hook"
-        type: string
-        default: "ci(hooks): validate commit-msg hook"
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
         type: number
-        default: 15
-      run_on_draft:
-        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
-        required: false
-        type: boolean
-        default: false
+        default: 45
 
 jobs:
-  lefthook:
-    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    name: Lefthook
+  lefthook-complex:
+    name: Lefthook (${{ inputs.tier }})
     runs-on: ubuntu-latest
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
@@ -89,11 +88,21 @@ jobs:
         with:
           egress-policy: audit
 
+      - name: Validate tier input
+        env:
+          TIER: ${{ inputs.tier }}
+        run: |
+          set -euo pipefail
+          case "$TIER" in
+            complex|release) ;;
+            *) echo "::error title=Invalid tier::tier must be 'complex' or 'release', got '$TIER'"; exit 1 ;;
+          esac
+
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Setup Go
-        if: inputs.install-golangci-lint || inputs.install-govulncheck
+        if: inputs.setup-go
         uses: actions/setup-go@40f1582b2485089dde7abd97c1529aa768e1baff # v5
         with:
           go-version: ${{ inputs.go-version }}
@@ -125,9 +134,14 @@ jobs:
             curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C "${HOME}/.local/bin" gitleaks
           fi
 
-      - name: Stage files for staged hooks
-        if: inputs.stage-files
-        run: git add -A
+      - name: Extra toolchain setup
+        if: inputs.setup-commands != ''
+        shell: bash
+        env:
+          SETUP_COMMANDS: ${{ inputs.setup-commands }}
+        run: |
+          set -euo pipefail
+          eval "$SETUP_COMMANDS"
 
       - name: Bootstrap lefthook
         shell: bash
@@ -137,32 +151,11 @@ jobs:
           set -euo pipefail
           eval "$BOOTSTRAP"
 
-      - name: Run pre-commit hooks
-        if: inputs.run-pre-commit
+      - name: Run heavy lefthook tier
         shell: bash
         env:
           LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
+          TIER: ${{ inputs.tier }}
         run: |
           set -euo pipefail
-          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run pre-commit
-
-      - name: Run commit-msg hook
-        if: inputs.run-commit-msg
-        shell: bash
-        env:
-          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
-          COMMIT_MSG_TEXT: ${{ inputs.commit-msg-text }}
-        run: |
-          set -euo pipefail
-          msg_file="$(mktemp)"
-          echo "${COMMIT_MSG_TEXT}" > "${msg_file}"
-          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run commit-msg -- "${msg_file}"
-
-      - name: Run pre-push hooks
-        if: inputs.run-pre-push
-        shell: bash
-        env:
-          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
-        run: |
-          set -euo pipefail
-          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run pre-push
+          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" run "${TIER}" --all-files
