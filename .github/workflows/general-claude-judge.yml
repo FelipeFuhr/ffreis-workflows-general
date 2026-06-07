@@ -1,0 +1,220 @@
+name: General / Claude Judge
+
+# Self-test exemption: this workflow cannot be exercised in ci.yml because it
+# requires live PR context (Code Scanning alerts, PR diff) that cannot be
+# reproduced against examples/hello/. YAML syntax is validated by the existing
+# general-actionlint.yml self-test job. See AGENTS.md for the documented rule
+# and this exception.
+
+on:
+  workflow_call:
+    inputs:
+      pr_number:
+        description: PR number to judge
+        required: true
+        type: number
+      head_ref:
+        description: PR head branch name
+        required: true
+        type: string
+      base_ref:
+        description: PR base branch name
+        required: true
+        type: string
+      model:
+        description: Claude model ID passed to --model
+        required: false
+        type: string
+        default: "claude-sonnet-4-6"
+      max_turns:
+        description: Maximum Claude agent turns (default 15)
+        required: false
+        type: number
+        default: 15
+      sonarqube_project_key:
+        description: SonarCloud project key — skipped when empty
+        required: false
+        type: string
+        default: ""
+    secrets:
+      ANTHROPIC_API_KEY:
+        required: true
+      SONARQUBE_TOKEN:
+        required: false
+
+jobs:
+  judge:
+    name: Claude Judge
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: write
+      pull-requests: write
+      issues: write
+      actions: read
+      security-events: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout PR head
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          ref: ${{ inputs.head_ref }}
+          fetch-depth: 0
+
+      - name: Collect findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+          HEAD_REF: ${{ inputs.head_ref }}
+          SONARQUBE_PROJECT_KEY: ${{ inputs.sonarqube_project_key }}
+          SONARQUBE_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+          REPO: ${{ github.repository }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p findings
+
+          # Code Scanning alerts (CodeQL, Trivy, Grype, gitleaks when upload-sarif: true)
+          # Returns [] when code scanning is not enabled — handled gracefully below.
+          gh api \
+            "repos/${REPO}/code-scanning/alerts?ref=${HEAD_REF}&state=open&per_page=100" \
+            > findings/code-scanning.json 2>/dev/null \
+            || echo '[]' > findings/code-scanning.json
+          echo "Code Scanning alerts: $(jq length findings/code-scanning.json)"
+
+          # SonarCloud (only when both project key and token are provided)
+          if [[ -n "${SONARQUBE_PROJECT_KEY:-}" && -n "${SONARQUBE_TOKEN:-}" ]]; then
+            curl -fsSL \
+              -H "Authorization: Bearer ${SONARQUBE_TOKEN}" \
+              "https://sonarcloud.io/api/issues/search?projectKey=${SONARQUBE_PROJECT_KEY}&branch=${HEAD_REF}&statuses=OPEN&ps=50" \
+              > findings/sonarcloud.json 2>/dev/null \
+              || echo '{"issues":[]}' > findings/sonarcloud.json
+            echo "SonarCloud issues: $(jq '.issues | length' findings/sonarcloud.json 2>/dev/null || echo 'unavailable')"
+          else
+            echo '{"issues":[]}' > findings/sonarcloud.json
+          fi
+
+      - name: Run Claude Judge
+        uses: anthropics/claude-code-action@v1  # renovate: pin-sha
+        env:
+          SONARQUBE_TOKEN: ${{ secrets.SONARQUBE_TOKEN }}
+        with:
+          anthropic_api_key: ${{ secrets.ANTHROPIC_API_KEY }}
+          claude_args: >-
+            --model ${{ inputs.model }}
+            --max-turns ${{ inputs.max_turns }}
+            --allowedTools Bash,Read,Glob,Grep
+          prompt: |
+            You are a code and security review judge for PR #${{ inputs.pr_number }} in ${{ github.repository }}.
+
+            Head branch: ${{ inputs.head_ref }}
+            Base branch: ${{ inputs.base_ref }}
+
+            ---
+
+            ## Step 1 — Understand the PR
+
+            Run these two commands and read the output:
+
+              gh pr diff ${{ inputs.pr_number }}
+              gh pr view ${{ inputs.pr_number }} --json title,body,files,headRefName,baseRefName
+
+            ---
+
+            ## Step 2 — Read findings
+
+            Two JSON files have been pre-populated in ./findings/:
+
+            - findings/code-scanning.json — GitHub Code Scanning alerts (CodeQL, Trivy,
+              Grype, gitleaks) as a JSON array. Each entry has:
+                .rule.description  — what the rule checks for
+                .most_recent_instance.location  — file path and line
+                .most_recent_instance.message.text  — specific finding message
+              May be an empty array [] if code scanning is not enabled or SARIF was not uploaded.
+
+            - findings/sonarcloud.json — SonarCloud issues. Look in .issues[]. Each has:
+                .rule, .message, .component, .textRange
+              Will be {"issues":[]} if SonarCloud is not configured for this repo.
+
+            Read both files now.
+
+            ---
+
+            ## Step 3 — Judge each finding
+
+            For each finding, read the flagged source code at the indicated file and line.
+            Assign one of these verdicts:
+
+              TRUE_POSITIVE    — real issue introduced or made worse by this PR's changes
+              FALSE_POSITIVE   — not a real issue (mis-detection, test code, out of scope)
+              PRE_EXISTING     — real issue, but existed before this PR (do not fix)
+              NEEDS_INVESTIGATION — cannot determine with confidence; explain why
+
+            ---
+
+            ## Step 4 — Post a summary comment
+
+            Post exactly ONE comment on the PR using:
+
+              gh pr comment ${{ inputs.pr_number }} --body "BODY"
+
+            Format the body as a markdown table:
+
+              ## Claude Security Review
+
+              | # | Finding | Tool | Severity | Verdict | Rationale |
+              |---|---------|------|----------|---------|-----------|
+              | 1 | Rule name — short description | CodeQL | HIGH | ✅ FALSE_POSITIVE | Reason |
+              | 2 | Rule name — short description | Grype  | MEDIUM | ❌ TRUE_POSITIVE | Reason — fix PR opened |
+
+              > Reviewed by Claude (`${{ inputs.model }}`). Fix PRs opened for all TRUE_POSITIVEs above.
+
+            If there are zero findings in both files, post:
+              "No findings to judge — PR looks clean."
+            and stop. Do not open any fix PRs.
+
+            ---
+
+            ## Step 5 — For each TRUE_POSITIVE: open a fix PR
+
+            Repeat this for every TRUE_POSITIVE (skip FALSE_POSITIVE, PRE_EXISTING, NEEDS_INVESTIGATION):
+
+            a. Create a branch off the PR head:
+               git checkout -b "claude/fix-pr-${{ inputs.pr_number }}-SLUG"
+               (replace SLUG with 2-4 words from the rule name, kebab-case)
+
+            b. Make the minimal fix. Change only the flagged location.
+               No refactoring. No unrelated edits.
+
+            c. Commit:
+               git add -A
+               git commit -m "fix: DESCRIPTION (addresses finding in #${{ inputs.pr_number }})"
+
+            d. Push and open a DRAFT fix PR targeting the feature branch (not main/develop):
+               git push origin "claude/fix-pr-${{ inputs.pr_number }}-SLUG"
+               gh pr create \
+                 --draft \
+                 --base "${{ inputs.head_ref }}" \
+                 --head "claude/fix-pr-${{ inputs.pr_number }}-SLUG" \
+                 --title "fix: DESCRIPTION" \
+                 --body "Addresses TRUE_POSITIVE confirmed in #${{ inputs.pr_number }}.
+
+               **Finding:** TOOL — RULE
+               **Rationale:** WHY_THIS_IS_REAL
+               **Fix:** WHAT_WAS_CHANGED"
+
+            e. Return to head branch before the next fix:
+               git checkout "${{ inputs.head_ref }}"
+
+            ---
+
+            ## Hard constraints
+
+            - Fix only issues introduced (or worsened) by this PR's diff.
+            - One finding per fix branch. Minimal change only.
+            - If you cannot produce a correct, minimal fix with full confidence,
+              mark as NEEDS_INVESTIGATION in the comment and skip the fix PR.
+            - Open fix PRs as DRAFT (--draft flag is required).
