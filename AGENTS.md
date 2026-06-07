@@ -7,8 +7,12 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
 ## Non-obvious rules (read before changing anything)
 
 1. **Every new `general-*.yml` must be exercised in `ci.yml`** against
-   `examples/hello/`. No exceptions. `devops-*.yml` workflows (repo-maintenance) are
-   exempt because they compose already-verified workflows.
+   `examples/hello/`. `devops-*.yml` workflows (repo-maintenance) are exempt because
+   they compose already-verified workflows. One documented exception to the general rule:
+   `general-claude-judge.yml` requires live PR context (Code Scanning alerts, PR diff)
+   that cannot be reproduced against a static example directory — its YAML syntax is
+   covered by the existing `general-actionlint.yml` job. Any future exception must carry
+   an explicit rationale in both the workflow file header and this AGENTS.md entry.
 
 2. **Shell injection prevention is enforced by Semgrep.** Never interpolate
    `${{ inputs.* }}` directly inside `run:` blocks. Always route through an `env:` var.
