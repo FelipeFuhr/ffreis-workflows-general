@@ -64,16 +64,18 @@ jobs:
 
       - name: Resolve inventory YAML name for branch
         id: routing
+        env:
+          KB_NAME: ${{ inputs.kb_name }}
         run: |
           set -euo pipefail
           BRANCH="${GITHUB_REF_NAME}"
           case "$BRANCH" in
             main|master)
-              YAML_NAME="${{ inputs.kb_name }}"
+              YAML_NAME="${KB_NAME}"
               ENV_NAME="prod"
               ;;
             develop)
-              YAML_NAME="${{ inputs.kb_name }}-dev"
+              YAML_NAME="${KB_NAME}-dev"
               ENV_NAME="dev"
               ;;
             *)
