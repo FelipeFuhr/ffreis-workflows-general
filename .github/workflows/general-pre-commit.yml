@@ -63,7 +63,6 @@ jobs:
             exit 0
           fi
 
-          python3 -m pip install --upgrade pip
-          python3 -m pip install "pre-commit==${PRE_COMMIT_VERSION}"
+          python3 -m pip install --only-binary :all: "pre-commit==${PRE_COMMIT_VERSION}"
           pre-commit --version
           pre-commit run --all-files --show-diff-on-failure

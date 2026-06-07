@@ -64,7 +64,7 @@ jobs:
           DRAFT_GATE_EXEMPT: ${{ inputs.draft-gate-exempt }}
         run: |
           set -euo pipefail
-          python3 -m pip install --quiet pyyaml >/dev/null 2>&1 || true
+          python3 -m pip install --quiet --only-binary :all: "pyyaml==6.0.2" >/dev/null 2>&1 || true
           python3 - <<'PY'
           # Mirror of quality-kit/scripts/ci_draft_policy.py — keep the rule in sync.
           import glob, os, sys
