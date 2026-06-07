@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.4.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.2...v1.4.3) (2026-06-06)
+
+
+### Bug Fixes
+
+* **ci:** unique concurrency group in reusable workflows to avoid caller deadlock ([#91](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/91)) ([5c855ba](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/5c855ba62fe77d82a30d30a8d68a7abe61bbc850))
+
 ## [1.4.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.1...v1.4.2) (2026-06-06)
 
 
