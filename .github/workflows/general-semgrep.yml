@@ -11,6 +11,10 @@ on:
         description: "Semgrep config/ruleset to use (e.g. auto, p/default)"
         type: string
         default: "auto"
+      semgrep-version:
+        description: "Semgrep version to install (pinned for reproducibility)"
+        type: string
+        default: "1.165.0"
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
@@ -44,7 +48,9 @@ jobs:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
       - name: Install Semgrep
-        run: pip install semgrep
+        env:
+          SEMGREP_VERSION: ${{ inputs.semgrep-version }}
+        run: 'pip install --only-binary :all: "semgrep==${SEMGREP_VERSION}"'
 
       - name: Run Semgrep
         run: semgrep scan --config "$SEMGREP_CONFIG"

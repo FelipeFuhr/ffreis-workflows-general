@@ -123,11 +123,14 @@ jobs:
           echo "${HOME}/.local/bin" >> "${GITHUB_PATH}"
 
           if [[ "$INSTALL_GOLANGCI_LINT" == "true" ]]; then
-            GOBIN="${HOME}/.local/bin" go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@v2.11.4
+            # Use the official installer script which verifies checksums (avoids go install without go.sum lockfile).
+            curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh \
+              | sh -s -- -b "${HOME}/.local/bin" v2.11.4
           fi
 
           if [[ "$INSTALL_GOVULNCHECK" == "true" ]]; then
-            GOBIN="${HOME}/.local/bin" go install golang.org/x/vuln/cmd/govulncheck@latest
+            # Pin to a specific version; govulncheck has no binary release so go install is the only method.
+            GOBIN="${HOME}/.local/bin" go install golang.org/x/vuln/cmd/govulncheck@v1.1.4
           fi
 
           if [[ "$INSTALL_GITLEAKS" == "true" ]]; then
