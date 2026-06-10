@@ -1,0 +1,140 @@
+name: General / config-validate
+
+# Reusable workflow: validates arbitrary YAML and JSON config files so a broken
+# config (unparseable YAML, malformed JSON) cannot land. Complements
+# general-actionlint (workflow YAML only), general-shellcheck, general-markdownlint.
+# yamllint runs in "relaxed" mode (structural errors fail; cosmetic rules off) so
+# it catches real breakage, not style.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory to scan for YAML/JSON files
+        required: false
+        type: string
+        default: .
+      files:
+        description: Optional newline-separated list of files to check (relative to working-directory)
+        required: false
+        type: string
+        default: ""
+      validate-yaml:
+        description: Validate *.yml / *.yaml files with yamllint
+        required: false
+        type: boolean
+        default: true
+      validate-json:
+        description: Validate *.json files (parse check)
+        required: false
+        type: boolean
+        default: true
+      yamllint-config:
+        description: Path to a yamllint config file; a relaxed built-in default is used when empty
+        required: false
+        type: string
+        default: ""
+      fail-on-error:
+        description: Fail the workflow if any file is invalid
+        required: false
+        type: boolean
+        default: true
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  config-validate:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install validators
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --user yamllint
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          jq --version
+
+      - name: Validate config files
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          FILES_INPUT: ${{ inputs.files }}
+          VALIDATE_YAML: ${{ inputs.validate-yaml }}
+          VALIDATE_JSON: ${{ inputs.validate-json }}
+          YAMLLINT_CONFIG: ${{ inputs.yamllint-config }}
+          FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+        run: |
+          set -euo pipefail
+          cd "$WORKING_DIRECTORY"
+
+          yaml_files=()
+          json_files=()
+          if [[ -n "$FILES_INPUT" ]]; then
+            while IFS= read -r line; do
+              [[ -z "$line" ]] && continue
+              case "$line" in
+                *.yml|*.yaml) yaml_files+=("$line") ;;
+                *.json) json_files+=("$line") ;;
+              esac
+            done <<< "$FILES_INPUT"
+          else
+            while IFS= read -r -d '' f; do yaml_files+=("${f#./}"); done \
+              < <(find . -type f \( -name '*.yml' -o -name '*.yaml' \) -not -path '*/.git/*' -print0)
+            while IFS= read -r -d '' f; do json_files+=("${f#./}"); done \
+              < <(find . -type f -name '*.json' -not -path '*/.git/*' -print0)
+          fi
+
+          if [[ "${#yaml_files[@]}" -eq 0 && "${#json_files[@]}" -eq 0 ]]; then
+            echo "No YAML/JSON files found; skipping."
+            exit 0
+          fi
+
+          rc=0
+
+          if [[ "$VALIDATE_YAML" == "true" && "${#yaml_files[@]}" -gt 0 ]]; then
+            if [[ -n "$YAMLLINT_CONFIG" ]]; then
+              cfg=(-c "$YAMLLINT_CONFIG")
+            else
+              cfg=(-d "{extends: relaxed, rules: {line-length: disable, document-start: disable, trailing-spaces: disable, comments: disable, empty-lines: disable, indentation: disable, comments-indentation: disable}}")
+            fi
+            echo "::group::yamllint (${#yaml_files[@]} file(s))"
+            yamllint "${cfg[@]}" -f github "${yaml_files[@]}" || rc=1
+            echo "::endgroup::"
+          fi
+
+          if [[ "$VALIDATE_JSON" == "true" && "${#json_files[@]}" -gt 0 ]]; then
+            echo "::group::JSON parse (${#json_files[@]} file(s))"
+            for f in "${json_files[@]}"; do
+              if jq empty "$f" 2>/tmp/jqerr; then
+                echo "ok   $f"
+              else
+                echo "::error file=$f::invalid JSON: $(tr '\n' ' ' < /tmp/jqerr)"
+                rc=1
+              fi
+            done
+            echo "::endgroup::"
+          fi
+
+          if [[ "$rc" -ne 0 && "$FAIL_ON_ERROR" == "true" ]]; then
+            echo "Config validation failed." >&2
+            exit 1
+          fi
+          echo "Config validation passed."

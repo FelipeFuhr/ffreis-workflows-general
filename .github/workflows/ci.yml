@@ -70,6 +70,13 @@ jobs:
     with:
       working-directory: .
 
+  config-validate:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-config-validate.yml
+    with:
+      working-directory: examples/hello
+
   code-quality:
     permissions:
       contents: read
