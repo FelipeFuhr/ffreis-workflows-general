@@ -1,0 +1,15 @@
+# Fixture for general-config-validate self-test: a valid YAML config.
+# The reusable workflow also validates the existing *.json files in this dir
+# (release-please-config.json, release-please-manifest.json).
+service:
+  name: hello
+  enabled: true
+  replicas: 2
+  ports:
+    - 8080
+    - 9090
+  env:
+    LOG_LEVEL: info
+    FEATURE_FLAGS:
+      - alpha
+      - beta
