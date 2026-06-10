@@ -1,5 +1,21 @@
 # Changelog
 
+## [1.5.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.3...v1.5.0) (2026-06-10)
+
+
+### Features
+
+* add 6 new reusable workflows to bridge CI gaps ([#99](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/99)) ([3563c9c](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/3563c9cd6e6282d53b2e203d35c502a3dd13901f))
+* add general-claude-judge reusable workflow ([#97](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/97)) ([bdf9f68](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/bdf9f68c3803f8450f55c4ea046ac7116d9c67e8))
+* add general-config-validate reusable workflow (yamllint + JSON parse) ([#103](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/103)) ([6df3e6e](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/6df3e6e4a50f91f1102aaf372063228323a5a5a2))
+* **ci-local:** drift-gate reusable workflow (general-ci-local-coverage.yml) ([#100](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/100)) ([12c4171](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/12c41714d56ff512e8093cd96a2ab11e60aced17))
+
+
+### Bug Fixes
+
+* resolve SonarQube issues ([#98](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/98)) ([6c0f6ec](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/6c0f6ec2fa4d3f83f2be03142b101b9e71e158b4))
+* resolve SonarQube script injection vulnerabilities ([#93](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/93)) ([bb6031b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/bb6031b2cbacb1f231382648ec4ab0d5512ad85d))
+
 ## [1.4.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.2...v1.4.3) (2026-06-06)
 
 
