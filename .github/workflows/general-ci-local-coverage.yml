@@ -1,0 +1,80 @@
+name: General / CI-local coverage (drift gate)
+
+# Fails when a repo's CI references — or a workflow lib defines — a reusable
+# workflow that is NOT classified in the ci-local tool registry
+# (ffreis-platform-ci-local/scripts/ci-local-tools.tsv). That registry is the
+# contract for "how does each CI check run locally?"; an unclassified reference
+# is drift — a check nobody decided how to run locally. See the harness repo.
+
+on:
+  workflow_call:
+    inputs:
+      mode:
+        description: "refs (consumer: check `uses:` references) | defines (lib: check workflows defined here)"
+        required: false
+        type: string
+        default: "refs"
+      enforce:
+        description: "Fail on drift (true) or only report it (false)"
+        required: false
+        type: boolean
+        default: true
+      working-directory:
+        description: "Repo root containing .github/workflows"
+        required: false
+        type: string
+        default: "."
+      ci-local-ref:
+        description: "Git ref of ffreis-platform-ci-local to fetch the drift check + registry from"
+        required: false
+        type: string
+        default: "main"
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 10
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  ci-local-coverage:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: drift gate
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Drift check (every CI workflow must be classified in the registry)
+        env:
+          MODE: ${{ inputs.mode }}
+          ENFORCE: ${{ inputs.enforce }}
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          CI_LOCAL_REF: ${{ inputs.ci-local-ref }}
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-ci-local/${CI_LOCAL_REF}/scripts"
+          curl -fsSL "$base/ci-local-drift.py"  -o /tmp/ci-local-drift.py
+          curl -fsSL "$base/ci-local-tools.tsv" -o /tmp/ci-local-tools.tsv
+          flags=""
+          [ "$MODE" = "defines" ] && flags="$flags --defines"
+          [ "$ENFORCE" = "true" ] && flags="$flags --enforce"
+          wf="${WORKING_DIRECTORY%/}/.github/workflows"
+          if [ ! -d "$wf" ]; then
+            echo "No $wf — nothing to check."
+            exit 0
+          fi
+          # shellcheck disable=SC2086
+          python3 /tmp/ci-local-drift.py --registry /tmp/ci-local-tools.tsv --workflows "$wf" $flags
