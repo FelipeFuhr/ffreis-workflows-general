@@ -13,7 +13,10 @@ concurrency:
 
 jobs:
   scorecard:
-    if: vars.SCORECARD_ENABLED != 'false' && github.event_name != 'pull_request'
+    if: |
+      vars.SCORECARD_ENABLED != 'false' &&
+      github.event_name != 'pull_request' &&
+      (vars.FLEET_SPOT_CI != 'true' || github.event_name == 'workflow_dispatch')
     # security-events: write required for SARIF/code scanning upload (GitHub code scanning integration)
     permissions:
       contents: read
@@ -25,7 +28,10 @@ jobs:
       upload-sarif: true
 
   stale:
-    if: vars.STALE_ENABLED != 'false' && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch')
+    if: |
+      vars.STALE_ENABLED != 'false' &&
+      (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') &&
+      (vars.FLEET_SPOT_CI != 'true' || github.event_name == 'workflow_dispatch')
     permissions:
       contents: read
       issues: write

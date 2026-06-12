@@ -7,6 +7,7 @@ on:
     branches: [main, master]
   schedule:
     - cron: "22 23 19 * *"  # monthly scattered (was: 0 6 * * 1)
+  workflow_dispatch:    # required: fleet-daily-ci.yml dispatches this per repo
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -48,6 +49,7 @@ jobs:
   trivy-fs:
     needs: changes
     if: |
+      (vars.FLEET_SPOT_CI != 'true' || github.event_name == 'workflow_dispatch') &&
       always() && (
         needs.changes.result == 'skipped' ||
         needs.changes.outputs.code == 'true'
@@ -64,6 +66,7 @@ jobs:
   grype-fs:
     needs: changes
     if: |
+      (vars.FLEET_SPOT_CI != 'true' || github.event_name == 'workflow_dispatch') &&
       always() && (
         needs.changes.result == 'skipped' ||
         needs.changes.outputs.code == 'true'
@@ -80,6 +83,7 @@ jobs:
   osv:
     needs: changes
     if: |
+      (vars.FLEET_SPOT_CI != 'true' || github.event_name == 'workflow_dispatch') &&
       always() && (
         needs.changes.result == 'skipped' ||
         needs.changes.outputs.code == 'true'
@@ -92,3 +96,14 @@ jobs:
     with:
       working-directory: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+
+  grype-pr-diff:
+    if: github.event_name == 'pull_request' && !github.event.pull_request.draft
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      pull-requests: read
+    uses: ./.github/workflows/general-grype-pr-diff.yml
+    with:
+      upload-sarif: false
