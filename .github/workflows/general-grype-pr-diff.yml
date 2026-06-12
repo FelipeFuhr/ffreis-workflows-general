@@ -1,0 +1,163 @@
+name: General / Grype (PR diff)
+
+on:
+  workflow_call:
+    inputs:
+      severity:
+        description: "Minimum severity that causes a non-zero exit (negligible/low/medium/high/critical)"
+        type: string
+        default: "high"
+      fail-on-vuln:
+        description: "If true, fail the workflow when vulnerabilities are found at or above severity"
+        type: boolean
+        default: false
+      upload-sarif:
+        description: "Upload SARIF to GitHub code scanning (requires GHAS; set false for private repos)"
+        type: boolean
+        default: false
+      manifest-patterns:
+        description: |
+          Newline-delimited glob list of manifest / lock files to watch.
+          The job is a no-op if none of these changed vs. the PR base.
+          Default covers the most common package ecosystems.
+        type: string
+        default: |
+          Cargo.toml
+          Cargo.lock
+          go.mod
+          go.sum
+          package.json
+          package-lock.json
+          yarn.lock
+          pnpm-lock.yaml
+          pyproject.toml
+          requirements*.txt
+          Pipfile
+          Pipfile.lock
+          poetry.lock
+          Gemfile
+          Gemfile.lock
+          *.tf
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  grype-pr-diff:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: Grype (PR diff)
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      pull-requests: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+        with:
+          fetch-depth: 0
+
+      - name: Detect changed manifests
+        id: filter
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PATTERNS: ${{ inputs.manifest-patterns }}
+        run: |
+          set -euo pipefail
+          if [ -z "${BASE_SHA:-}" ]; then
+            echo "Skipping: no base SHA (not a PR event)"
+            echo "any_changed=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          any_changed=false
+          while IFS= read -r pattern; do
+            [ -z "$pattern" ] && continue
+            # Intentional glob expansion: patterns like 'requirements*.txt' must expand.
+            # shellcheck disable=SC2086
+            if git diff --name-only "${BASE_SHA}...HEAD" -- $pattern 2>/dev/null | grep -q .; then
+              any_changed=true
+              break
+            fi
+          done <<< "$PATTERNS"
+
+          echo "any_changed=${any_changed}" >> "$GITHUB_OUTPUT"
+          if [[ "$any_changed" == "true" ]]; then
+            echo "At least one manifest file changed — running Grype."
+          else
+            echo "No manifest files changed — Grype scan skipped."
+          fi
+
+      - name: Install Grype
+        if: steps.filter.outputs.any_changed == 'true'
+        run: |
+          set -euo pipefail
+          PINNED_COMMIT="dee8de483dfba5b4e0bc0aa8e4ab2ce52137e490"
+          SCRIPT_URL="https://raw.githubusercontent.com/anchore/grype/${PINNED_COMMIT}/install.sh"
+          _grype_tmp="$(mktemp -d)"
+          curl --fail --show-error --silent --location \
+            --proto '=https' --proto-redir '=https' \
+            "$SCRIPT_URL" -o /tmp/grype-install.sh
+          grep -q "grype" /tmp/grype-install.sh
+          sh /tmp/grype-install.sh -b "$_grype_tmp" v0.114.0
+          sudo install -m 0755 "$_grype_tmp/grype" /usr/local/bin/grype
+          grype version
+
+      - name: Run Grype (with retry on empty SARIF)
+        if: steps.filter.outputs.any_changed == 'true'
+        env:
+          SEVERITY: ${{ inputs.severity }}
+          FAIL_ON_VULN: ${{ inputs.fail-on-vuln }}
+        run: |
+          set -euo pipefail
+          for attempt in 1 2 3; do
+            set +e
+            grype "dir:." \
+              --fail-on "$SEVERITY" \
+              -o sarif \
+              > grype.sarif 2> grype.stderr.log
+            exit_code="$?"
+            set -e
+
+            if test -s grype.sarif; then
+              break
+            fi
+
+            echo "::warning::Attempt ${attempt}/3 produced empty SARIF — retrying."
+            if test -s grype.stderr.log; then
+              echo "::group::grype stderr"
+              cat grype.stderr.log || true
+              echo "::endgroup::"
+            fi
+            sleep $((attempt * 10))
+          done
+
+          if ! test -s grype.sarif; then
+            echo "::error::grype.sarif was not generated or is empty after 3 attempts"
+            exit 1
+          fi
+
+          if [[ "$exit_code" -ne 0 ]]; then
+            if [[ "$FAIL_ON_VULN" == "true" ]]; then
+              exit "$exit_code"
+            fi
+            echo "::warning::Grype found vulnerabilities (exit=$exit_code) but fail-on-vuln=false; continuing."
+          fi
+
+      - name: Upload SARIF
+        if: |
+          inputs.upload-sarif == true
+          && steps.filter.outputs.any_changed == 'true'
+          && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: grype.sarif
+          category: grype-pr-diff
