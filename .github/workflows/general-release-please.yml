@@ -33,6 +33,13 @@ on:
         required: false
         type: boolean
         default: false
+      runner:
+        description: |
+          JSON-encoded runner label. Default: GitHub-hosted ubuntu-latest.
+          For scheduled cron jobs on AWS Spot: '["self-hosted","spot","linux","x64"]'
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
     secrets:
       RELEASE_PLEASE_TOKEN:
         description: Optional token (PAT) to run release-please; defaults to github.token
@@ -45,10 +52,11 @@ jobs:
       contents: write
       pull-requests: write
       issues: write
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     steps:
       - name: Harden the runner (Audit all outbound calls)
+        if: runner.environment == 'github-hosted'
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
           egress-policy: audit
