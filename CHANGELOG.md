@@ -1,5 +1,14 @@
 # Changelog
 
+## [1.6.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.5.0...v1.6.0) (2026-06-12)
+
+
+### Features
+
+* **fleet:** add FLEET_SPOT_CI gate + grype-pr-diff to templates ([45165d8](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/45165d8fa75cae27bfc2b551c0a09f4245f61fc0))
+* **grype:** add general-grype-pr-diff reusable workflow ([e979e12](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/e979e126dd2cba87717399ebe92d1b3c0de36b0a))
+* **runner:** add runner input for AWS Spot routing (cron + push-to-main) ([773f0ad](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/773f0ad0aa056dff88e018ed05731a8579bdf247))
+
 ## [1.5.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.4.3...v1.5.0) (2026-06-10)
 
 
