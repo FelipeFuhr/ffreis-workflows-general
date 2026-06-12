@@ -171,6 +171,19 @@ jobs:
       working-directory: examples/hello
       upload-sarif: false
 
+  grype-pr-diff:
+    if: github.event_name == 'pull_request'
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
+      pull-requests: read
+    uses: ./.github/workflows/general-grype-pr-diff.yml
+    with:
+      upload-sarif: false
+      manifest-patterns: |
+        examples/hello/package.json
+
   run-commands:
     permissions:
       actions: read
