@@ -55,11 +55,18 @@ on:
         required: false
         type: number
         default: 20
+      runner:
+        description: |
+          JSON-encoded runner label. Default: GitHub-hosted ubuntu-latest.
+          For scheduled cron jobs on AWS Spot: '["self-hosted","spot","linux","x64"]'
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
 
 jobs:
   security-fs:
     name: Security (fs bundle)
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
@@ -67,6 +74,7 @@ jobs:
       security-events: write
     steps:
       - name: Harden the runner (Audit all outbound calls)
+        if: runner.environment == 'github-hosted'
         uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
         with:
           egress-policy: audit
