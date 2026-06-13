@@ -1,0 +1,29 @@
+name: Lefthook Complex
+
+on:
+  workflow_dispatch:
+    inputs:
+      tier:
+        description: "Heavy lefthook tier to run on the whole tree"
+        type: choice
+        options: [complex, release]
+        default: complex
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lefthook-complex:
+    uses: ./.github/workflows/general-lefthook-complex.yml
+    with:
+      working-directory: "."
+      tier: ${{ inputs.tier }}
+      setup-go: false
+      install-golangci-lint: false
+      install-govulncheck: false
+      lefthook-bootstrap-command: "make lefthook-bootstrap"
+      lefthook-bin: ".bin/lefthook"
