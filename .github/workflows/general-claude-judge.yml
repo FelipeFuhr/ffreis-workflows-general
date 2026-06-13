@@ -42,6 +42,8 @@ on:
       SONARQUBE_TOKEN:
         required: false
 
+permissions: {}
+
 jobs:
   judge:
     name: Claude Judge

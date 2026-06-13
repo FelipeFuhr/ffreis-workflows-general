@@ -20,6 +20,8 @@ on:
         type: number
         default: 15
 
+permissions: {}
+
 jobs:
   scorecard-publish:
     # Publishing requires the default branch + OIDC; never runs on PRs.
