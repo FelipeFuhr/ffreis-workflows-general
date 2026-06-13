@@ -43,6 +43,8 @@ on:
         type: boolean
         default: false
 
+permissions: {}
+
 jobs:
   go:
     if: inputs.enable-go

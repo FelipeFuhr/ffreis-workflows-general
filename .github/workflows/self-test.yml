@@ -33,6 +33,8 @@ on:
         description: Optional token (PAT) to run release-please; defaults to github.token
         required: false
 
+permissions: {}
+
 jobs:
   workflows-policy:
     if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}

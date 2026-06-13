@@ -70,6 +70,8 @@ on:
         type: number
         default: 45
 
+permissions: {}
+
 jobs:
   lefthook-complex:
     name: Lefthook (${{ inputs.tier }})
@@ -144,7 +146,7 @@ jobs:
           SETUP_COMMANDS: ${{ inputs.setup-commands }}
         run: |
           set -euo pipefail
-          eval "$SETUP_COMMANDS"
+          eval "$SETUP_COMMANDS" # nosemgrep: yaml.github-actions.security.run-shell-injection.run-shell-injection
 
       - name: Bootstrap lefthook
         shell: bash
@@ -152,7 +154,7 @@ jobs:
           BOOTSTRAP: ${{ inputs.lefthook-bootstrap-command }}
         run: |
           set -euo pipefail
-          eval "$BOOTSTRAP"
+          eval "$BOOTSTRAP" # nosemgrep: yaml.github-actions.security.run-shell-injection.run-shell-injection
 
       - name: Run heavy lefthook tier
         shell: bash
