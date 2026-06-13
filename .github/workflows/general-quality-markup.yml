@@ -1,0 +1,245 @@
+name: General / Quality Markup
+
+on:
+  workflow_call:
+    inputs:
+      data-repo:
+        description: "Data repository (owner/repo). Required unless skip-build is true."
+        required: false
+        type: string
+        default: ""
+      data-ref:
+        description: "Data repository ref"
+        required: false
+        type: string
+        default: main
+      data-lang:
+        description: >
+          Language to inject. Empty = flat structure (site.d/ + site.yaml at repo root).
+          Non-empty = multi-lang merge: shared/site.d/ + <lang>/site.d/ + <lang>/site.yaml.
+        required: false
+        type: string
+        default: ""
+      compiler-repo:
+        description: "Compiler repository (owner/repo). Defaults to {owner}/ffreis-website-compiler."
+        required: false
+        type: string
+        default: ""
+      enable-html-validate:
+        description: "Run html-validate against compiled HTML output (requires build step)"
+        required: false
+        type: boolean
+        default: true
+      enable-stylelint:
+        description: "Run stylelint against source CSS files (no build required)"
+        required: false
+        type: boolean
+        default: true
+      enable-vnu:
+        description: "Run Nu HTML Checker (vnu-jar) against compiled HTML output (requires build step)"
+        required: false
+        type: boolean
+        default: true
+      skip-build:
+        description: "Skip compiler checkout and build. Use dist-path as the pre-built output."
+        required: false
+        type: boolean
+        default: false
+      dist-path:
+        description: "Path to pre-built HTML output (used when skip-build is true)."
+        required: false
+        type: string
+        default: dist
+      timeout-minutes:
+        description: "Maximum minutes before job is cancelled"
+        required: false
+        type: number
+        default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+    secrets:
+      CI_REPO_READ_TOKEN:
+        description: "PAT for checking out private data/compiler repos. Falls back to github.token."
+        required: false
+
+permissions:
+  contents: read
+
+jobs:
+  markup-quality:
+    name: Markup Quality
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes || 15 }}
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout website
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+
+      # ── Stylelint (source CSS — no build needed) ──────────────────────────
+
+      - name: Set up Node.js
+        if: ${{ inputs.enable-stylelint || inputs.enable-html-validate || inputs.enable-vnu }}
+        uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4
+        with:
+          node-version: '20'
+
+      - name: Lint CSS (stylelint)
+        if: ${{ inputs.enable-stylelint }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s globstar nullglob
+          css_files=( src/assets/**/*.css )
+          if [[ ${#css_files[@]} -eq 0 ]]; then
+            echo "stylelint: no CSS files found in src/assets/ — skipping"
+            exit 0
+          fi
+          # Minimal rule set using only built-in stylelint rules (no plugins required)
+          STYLELINT_CONFIG='{"rules":{"color-no-invalid-hex":true,"font-family-no-duplicate-names":true,"property-no-unknown":true,"unit-no-unknown":true,"selector-pseudo-class-no-unknown":true,"selector-pseudo-element-no-unknown":true,"selector-type-no-unknown":[true,{"ignoreTypes":["/"]}],"declaration-block-no-duplicate-properties":true,"no-duplicate-selectors":true}}'
+          npx --yes stylelint@latest \
+            --config "$STYLELINT_CONFIG" \
+            --formatter compact \
+            "${css_files[@]}"
+          echo "stylelint: OK (${#css_files[@]} CSS file(s))"
+
+      # ── Build (skipped when skip-build: true) ─────────────────────────────
+
+      - name: Checkout website compiler
+        if: ${{ !inputs.skip-build && (inputs.enable-html-validate || inputs.enable-vnu) }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          repository: ${{ inputs.compiler-repo || format('{0}/ffreis-website-compiler', github.repository_owner) }}
+          path: website-compiler
+          token: ${{ secrets.CI_REPO_READ_TOKEN || github.token }}
+
+      - name: Detect compiler layout
+        if: ${{ !inputs.skip-build && (inputs.enable-html-validate || inputs.enable-vnu) }}
+        id: detect_compiler
+        shell: bash
+        run: |
+          set -euo pipefail
+          is_compatible() {
+            local dir="$1"
+            [[ -f "${dir}/go.mod" ]] || return 1
+            [[ -f "${dir}/cmd/website-compiler/main.go" ]] || return 1
+            [[ -d "${dir}/cmd/build-static" ]] || return 1
+            return 0
+          }
+          for root in "website-compiler" "website-compiler/ffreis-website-compiler"; do
+            if is_compatible "${root}"; then
+              echo "compiler_dir=${root}" >> "$GITHUB_OUTPUT"
+              echo "go_mod=${root}/go.mod" >> "$GITHUB_OUTPUT"
+              exit 0
+            fi
+          done
+          echo "Could not detect a compatible compiler checkout." >&2; exit 1
+
+      - name: Checkout website data
+        if: ${{ !inputs.skip-build && (inputs.enable-html-validate || inputs.enable-vnu) }}
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          repository: ${{ inputs.data-repo }}
+          ref: ${{ inputs.data-ref }}
+          path: website-data
+          token: ${{ secrets.CI_REPO_READ_TOKEN || github.token }}
+
+      - name: Set up Go
+        if: ${{ !inputs.skip-build && (inputs.enable-html-validate || inputs.enable-vnu) }}
+        uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5
+        with:
+          go-version-file: ${{ steps.detect_compiler.outputs.go_mod }}
+          cache: true
+
+      - name: Inject data and build
+        if: ${{ !inputs.skip-build && (inputs.enable-html-validate || inputs.enable-vnu) }}
+        env:
+          DATA_LANG: ${{ inputs.data-lang }}
+          COMPILER_DIR: ${{ steps.detect_compiler.outputs.compiler_dir }}
+        run: |
+          set -euo pipefail
+          mkdir -p src/data/site.d
+          if [[ -z "$DATA_LANG" ]]; then
+            cp -r website-data/site.d/. src/data/site.d/
+            cp website-data/site.yaml src/data/
+          else
+            if [[ -d "website-data/shared/site.d" ]]; then
+              cp -r website-data/shared/site.d/. src/data/site.d/
+            fi
+            cp -r "website-data/${DATA_LANG}/site.d/." src/data/site.d/
+            cp "website-data/${DATA_LANG}/site.yaml" src/data/
+          fi
+          mkdir -p dist
+          go -C "$COMPILER_DIR" run ./cmd/build-static \
+            -website-root "$GITHUB_WORKSPACE" \
+            -out "$GITHUB_WORKSPACE/dist"
+
+      # ── html-validate (compiled output) ──────────────────────────────────
+
+      - name: Validate HTML (html-validate)
+        if: ${{ inputs.enable-html-validate }}
+        env:
+          DIST_PATH: ${{ inputs.skip-build && inputs.dist-path || 'dist' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t html_files < <(find "$DIST_PATH" -name "*.html" -type f | sort)
+          if [[ ${#html_files[@]} -eq 0 ]]; then
+            echo "html-validate: no HTML files found in $DIST_PATH — skipping"
+            exit 0
+          fi
+          # html-validate:recommended is bundled in the package.
+          # void-style omit: matches the compiler's self-closing tag output.
+          # attr-quotes double: consistency with compiler output.
+          npx --yes html-validate@latest \
+            --config '{"extends":["html-validate:recommended"],"rules":{"void-style":"omit","attr-quotes":"double"}}' \
+            "${html_files[@]}"
+          echo "html-validate: OK (${#html_files[@]} page(s))"
+
+      # ── vnu — Nu HTML Checker (compiled output) ───────────────────────────
+
+      - name: Validate HTML spec (vnu)
+        if: ${{ inputs.enable-vnu }}
+        env:
+          DIST_PATH: ${{ inputs.skip-build && inputs.dist-path || 'dist' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -t html_files < <(find "$DIST_PATH" -name "*.html" -type f | sort)
+          if [[ ${#html_files[@]} -eq 0 ]]; then
+            echo "vnu: no HTML files found in $DIST_PATH — skipping"
+            exit 0
+          fi
+          # vnu-jar wraps the Nu HTML Checker jar; Ubuntu runners ship Java 11+.
+          # Exit code is non-zero when there are errors — captured below.
+          npx --yes vnu-jar --format json "${html_files[@]}" > vnu-results.json 2>&1 || true
+          python3 - <<'PYEOF'
+          import json, pathlib, sys
+          raw = pathlib.Path("vnu-results.json").read_text()
+          try:
+              data = json.loads(raw)
+          except json.JSONDecodeError:
+              # vnu sometimes emits non-JSON on startup errors — treat as non-fatal
+              print(f"vnu: could not parse output: {raw[:200]!r}", file=sys.stderr)
+              sys.exit(0)
+          msgs = data.get("messages", [])
+          errors = [m for m in msgs if m.get("type") == "error"]
+          warnings = [m for m in msgs if m.get("type") == "info"]
+          if errors:
+              for e in errors[:30]:
+                  loc = f"{e.get('url', '?')}:{e.get('lastLine', '?')}"
+                  print(f"  {loc}: {e.get('message', '?')}", file=sys.stderr)
+              if len(errors) > 30:
+                  print(f"  ... and {len(errors) - 30} more error(s)", file=sys.stderr)
+              print(f"vnu: {len(errors)} error(s) found", file=sys.stderr)
+              sys.exit(1)
+          print(f"vnu: OK ({len(html_files)} page(s), {len(warnings)} info warning(s))")
+          PYEOF
