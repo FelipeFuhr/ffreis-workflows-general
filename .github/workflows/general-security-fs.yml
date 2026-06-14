@@ -134,11 +134,15 @@ jobs:
           exit_code=0
           while true; do
             attempt=$((attempt + 1))
+            # GHA runner invokes `shell: bash` with -e, so a non-zero grype exit
+            # (code 2 = matches found) would kill the shell before exit_code=$? runs.
+            # Use && / || to suppress -e while still capturing the exit code.
             grype "dir:${SCAN_PATH}" \
               --fail-on "$SEVERITY" \
               -o sarif \
-              > grype.sarif 2> grype.stderr.log
-            exit_code="$?"
+              > grype.sarif 2> grype.stderr.log \
+              && exit_code=0 \
+              || exit_code=$?
             if test -s grype.sarif; then
               break
             fi
