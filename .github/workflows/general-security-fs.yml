@@ -193,7 +193,8 @@ jobs:
           set -euo pipefail
           cd "$WORKING_DIRECTORY"
           if [[ -z "$CONFIG_PATH" && -f ".gitleaks.toml" ]]; then
-            if grep -qF '[[allowlist]]' .gitleaks.toml; then
+            # Anchor to line-start to avoid matching comments that reference [[allowlist]] in prose.
+            if grep -qE '^[[:space:]]*\[\[allowlist\]\]' .gitleaks.toml; then
               echo "::error::.gitleaks.toml uses legacy '[[allowlist]]' (array) format; expected a single '[allowlist]' table."
               exit 2
             fi
