@@ -1,5 +1,9 @@
 # ffreis-workflows-general
 
+<!-- ffreis-badges:start -->
+[![CI](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FelipeFuhr/ffreis-badges/main/badges/ffreis-workflows-general/ci.json)](https://github.com/FelipeFuhr/ffreis-workflows-general/actions) [![Latest version](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FelipeFuhr/ffreis-badges/main/badges/ffreis-workflows-general/version.json)](https://github.com/FelipeFuhr/ffreis-workflows-general/releases) [![License](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/FelipeFuhr/ffreis-badges/main/badges/ffreis-workflows-general/license.json)](https://github.com/FelipeFuhr/ffreis-workflows-general/blob/main/LICENSE)
+<!-- ffreis-badges:end -->
+
 Reusable, language-agnostic GitHub Actions workflows.
 
 ## Workflows
