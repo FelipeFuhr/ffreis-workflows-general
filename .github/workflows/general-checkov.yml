@@ -1,0 +1,71 @@
+name: General / Checkov
+
+on:
+  workflow_call:
+    inputs:
+      directory:
+        description: "Directory to scan for IaC misconfigurations"
+        required: false
+        type: string
+        default: "."
+      soft-fail:
+        description: "Do not fail the job on findings (warnings only)"
+        required: false
+        type: boolean
+        default: true
+      skip-checks:
+        description: "Comma-separated list of check IDs to skip"
+        required: false
+        type: string
+        default: ""
+      upload-sarif:
+        description: "Upload SARIF to GitHub code scanning"
+        required: false
+        type: boolean
+        default: false
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  checkov:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Run Checkov
+        id: checkov
+        uses: bridgecrewio/checkov-action@8c66e3fb7b4d68a8e3f969e4daa32d8c8f15f6a8 # v12.2780.0
+        with:
+          directory: ${{ inputs.directory }}
+          soft_fail: ${{ inputs.soft-fail }}
+          skip_check: ${{ inputs.skip-checks }}
+          output_format: cli,sarif
+          output_file_path: console,checkov.sarif
+          quiet: false
+        continue-on-error: ${{ inputs.soft-fail }}
+
+      - name: Upload Checkov SARIF
+        if: inputs.upload-sarif && hashFiles('checkov.sarif') != '' && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false)
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: checkov.sarif
+          category: checkov

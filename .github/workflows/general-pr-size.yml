@@ -1,0 +1,119 @@
+name: General / PR Size
+
+on:
+  workflow_call:
+    inputs:
+      pr-number:
+        description: "Optional PR number (only needed if not running on pull_request)"
+        required: false
+        type: number
+        default: 0
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 10
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  pr-size:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Apply PR size labels
+        env:
+          PR_NUMBER: ${{ inputs.pr-number }}
+          EVENT_PR_NUMBER: ${{ github.event.pull_request.number }}
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+          import subprocess
+          from fnmatch import fnmatch
+
+          pr_number = int(os.environ.get("PR_NUMBER", "0") or "0")
+          event_pr = os.environ.get("EVENT_PR_NUMBER", "")
+          if pr_number == 0 and event_pr:
+              pr_number = int(event_pr)
+
+          if pr_number == 0:
+              print("::notice::No PR number detected; skipping PR size labeling.")
+              sys.exit(0)
+
+          # Exclude generated/lock files when counting diff
+          exclude_patterns = [
+              "*.sum",        # go.sum
+              "uv.lock",      # uv lock file
+              "*.lock",       # various lock files
+              "pnpm-lock.yaml",
+              "yarn.lock",
+              "package-lock.json",
+          ]
+
+          try:
+              result = subprocess.run(
+                  ["gh", "pr", "diff", str(pr_number)],
+                  capture_output=True,
+                  text=True,
+                  check=False
+              )
+              diff_text = result.stdout
+          except Exception as e:
+              print(f"::error::Failed to fetch PR diff: {e}")
+              sys.exit(1)
+
+          # Count lines changed (+ and -)
+          added = 0
+          removed = 0
+          for line in diff_text.split("\n"):
+              if line.startswith("+") and not line.startswith("+++"):
+                  added += 1
+              elif line.startswith("-") and not line.startswith("---"):
+                  removed += 1
+
+          total_changed = added + removed
+
+          # Determine size label
+          if total_changed < 10:
+              size_label = "size/xs"
+          elif total_changed < 50:
+              size_label = "size/s"
+          elif total_changed < 200:
+              size_label = "size/m"
+          elif total_changed < 500:
+              size_label = "size/l"
+          else:
+              size_label = "size/xl"
+
+          print(f"PR #{pr_number}: {added} added, {removed} removed, {total_changed} total -> {size_label}")
+
+          # Apply label
+          try:
+              subprocess.run(
+                  ["gh", "pr", "edit", str(pr_number), "--add-label", size_label],
+                  check=True,
+                  capture_output=True
+              )
+              print(f"✓ Applied label: {size_label}")
+          except Exception as e:
+              print(f"::error::Failed to apply label: {e}")
+              sys.exit(1)
+          PY
