@@ -1,5 +1,20 @@
 # Changelog
 
+## [1.7.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.6.0...v1.7.0) (2026-06-25)
+
+
+### Features
+
+* **ci:** remove general-quality-seo and general-quality-live workflows ([#113](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/113)) ([1178fcd](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/1178fcdb8ee4baede5d630afabd26e8ecf82b0bf))
+
+
+### Bug Fixes
+
+* **gitleaks:** restrict allowlist grep to line-start only ([4746335](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/474633563723ef7b055ca9af2c00564dd217d03e))
+* **grype:** capture exit code with || to survive shell -e flag ([18fd5ef](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/18fd5efa47d47bdc4cc9418ea5b26f88246772f8))
+* **grype:** exclude grype binary from its own filesystem scan ([#119](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/119)) ([9bc50ce](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/9bc50ce3a8973a01e2ae2c5a5dca437e6de99c81))
+* **grype:** exit-on-error + add 6 new reusable workflows (checkov, dep-review, markdownlint, pr-size, sbom, typos) ([#118](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/118)) ([3adec90](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/3adec9071fcbfa4c008ba1c8d0b9947307e89eed))
+
 ## [1.6.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.5.0...v1.6.0) (2026-06-12)
 
 
