@@ -137,7 +137,13 @@ jobs:
             # GHA runner invokes `shell: bash` with -e, so a non-zero grype exit
             # (code 2 = matches found) would kill the shell before exit_code=$? runs.
             # Use && / || to suppress -e while still capturing the exit code.
+            # scan-fix(grype:self-scan): exclude grype's own binary — installed to
+            # /usr/local/bin/grype (GHA) or /bin/grype (host/act); without this,
+            # CVEs in grype's own Go stdlib/docker deps surface as project findings.
             grype "dir:${SCAN_PATH}" \
+              --exclude '/bin/grype' \
+              --exclude '/usr/local/bin/grype' \
+              --exclude '/usr/bin/grype' \
               --fail-on "$SEVERITY" \
               -o sarif \
               > grype.sarif 2> grype.stderr.log \
