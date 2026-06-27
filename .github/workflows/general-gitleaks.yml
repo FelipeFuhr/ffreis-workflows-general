@@ -96,7 +96,9 @@ jobs:
           set -euo pipefail
           cd "$WORKING_DIRECTORY"
           if [[ -z "$CONFIG_PATH" && -f ".gitleaks.toml" ]]; then
-            if grep -qF '[[allowlist]]' .gitleaks.toml; then
+            # Anchor to a real TOML table header (line start) so a mere mention
+            # of the token in a comment or string does not false-positive.
+            if grep -qE '^[[:space:]]*\[\[allowlist\]\]' .gitleaks.toml; then
               echo "ERROR: .gitleaks.toml uses legacy '[[allowlist]]' (array) format."
               echo "Gitleaks expects a single '[allowlist]' table (map)."
               echo "Fix: merge the entries into one '[allowlist]' with combined 'regexes'/'paths'."
