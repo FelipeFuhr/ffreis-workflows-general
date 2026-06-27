@@ -8,6 +8,11 @@ on:
         required: false
         type: string
         default: .
+      osv-scanner-version:
+        description: osv-scanner version to install (without leading v)
+        required: false
+        type: string
+        default: "2.4.0"
       upload-sarif:
         description: Upload SARIF to GitHub code scanning
         required: false
@@ -29,22 +34,75 @@ on:
         type: boolean
         default: false
 
+concurrency:
+  # Distinct group (literal "osv" infix) so this never matches a caller's
+  # ${{ github.workflow }}-${{ github.ref }} group. When invoked via
+  # workflow_call, github.workflow resolves to the CALLER's name, so an
+  # identical group would deadlock the run.
+  group: ${{ github.workflow }}-osv-${{ github.ref }}
+  cancel-in-progress: true
+
 permissions: {}
 
+# We run the osv-scanner binary directly rather than google/osv-scanner-action's
+# reusable workflow: that reusable pulls in actions/download-artifact pinned to a
+# TAG, which repos with `sha_pinning_required` reject (startup_failure). A direct
+# binary download has no nested action to pin.
 jobs:
   osv-scanner:
     if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     name: OSV-Scanner
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes || 15 }}
     permissions:
       contents: read
       actions: read
       security-events: write
-    uses: google/osv-scanner-action/.github/workflows/osv-scanner-reusable.yml@c51854704019a247608d928f370c98740469d4b5 # v2.3.5
-    with:
-      scan-args: |-
-        -r
-        --skip-git
-        ${{ inputs.working-directory }}
-      results-file-name: osv-scanner.sarif
-      upload-sarif: ${{ inputs.upload-sarif && (github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false) }}
-      fail-on-vuln: ${{ inputs.fail-on-vuln }}
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
+
+      - name: Install osv-scanner
+        env:
+          OSV_VERSION: ${{ inputs.osv-scanner-version || '2.4.0' }}
+        run: |
+          set -euo pipefail
+          url="https://github.com/google/osv-scanner/releases/download/v${OSV_VERSION}/osv-scanner_linux_amd64"
+          sudo curl -fsSL "$url" -o /usr/local/bin/osv-scanner
+          sudo chmod 0755 /usr/local/bin/osv-scanner
+          osv-scanner --version
+
+      - name: Run OSV-Scanner
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          FAIL_ON_VULN: ${{ inputs.fail-on-vuln }}
+        run: |
+          set -uo pipefail
+          osv-scanner scan source --recursive --format sarif \
+            --output-file "${GITHUB_WORKSPACE}/osv-scanner.sarif" "$WORKING_DIRECTORY"
+          rc=$?
+          # osv-scanner exit codes: 0 = no vulnerabilities, 1 = vulnerabilities
+          # found, anything else = a real scanner error.
+          if [[ "$rc" -eq 0 ]]; then
+            echo "OSV-Scanner: no known vulnerabilities."
+          elif [[ "$rc" -eq 1 ]]; then
+            echo "OSV-Scanner: known vulnerabilities found."
+            if [[ "$FAIL_ON_VULN" == "true" ]]; then
+              exit 1
+            fi
+          else
+            echo "OSV-Scanner: scanner error (exit ${rc})."
+            exit "$rc"
+          fi
+
+      - name: Upload SARIF
+        if: inputs.upload-sarif
+        uses: github/codeql-action/upload-sarif@7211b7c8077ea37d8641b6271f6a365a22a5fbfa # v4.36.0
+        with:
+          sarif_file: osv-scanner.sarif
+          category: osv-scanner
