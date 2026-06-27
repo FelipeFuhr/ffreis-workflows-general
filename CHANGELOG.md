@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.7.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.7.0...v1.7.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* orphaned dependency-review SHA + gitleaks comment-guard false-positive ([#121](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/121)) ([b2b0084](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/b2b0084a62265a79a16a7ec04a6f56b464e1bfc1))
+
 ## [1.7.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.6.0...v1.7.0) (2026-06-25)
 
 
