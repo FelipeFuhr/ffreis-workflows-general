@@ -69,13 +69,20 @@ on:
         required: false
         type: number
         default: 45
+      runner:
+        description: |
+          JSON-encoded runner label(s). Default: GitHub-hosted ubuntu-latest.
+          Self-hosted homelab box (private repos only): '["self-hosted","local"]'
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
 
 permissions: {}
 
 jobs:
   lefthook-complex:
     name: Lefthook (${{ inputs.tier }})
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read

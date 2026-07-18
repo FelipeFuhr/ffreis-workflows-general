@@ -19,6 +19,13 @@ on:
         required: false
         type: number
         default: 15
+      runner:
+        description: |
+          JSON-encoded runner label(s). Default: GitHub-hosted ubuntu-latest.
+          Self-hosted homelab box (private repos only): '["self-hosted","local"]'
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
 
 permissions: {}
 
@@ -27,7 +34,7 @@ jobs:
     # Publishing requires the default branch + OIDC; never runs on PRs.
     if: ${{ github.event_name != 'pull_request' }}
     name: OSSF Scorecard (publish)
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       id-token: write

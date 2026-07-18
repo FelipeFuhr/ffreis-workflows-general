@@ -36,6 +36,13 @@ on:
         required: false
         type: string
         default: ""
+      runner:
+        description: |
+          JSON-encoded runner label(s). Default: GitHub-hosted ubuntu-latest.
+          Self-hosted homelab box (private repos only): '["self-hosted","local"]'
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
     secrets:
       ANTHROPIC_API_KEY:
         required: true
@@ -47,7 +54,7 @@ permissions: {}
 jobs:
   judge:
     name: Claude Judge
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: 20
     permissions:
       contents: write
