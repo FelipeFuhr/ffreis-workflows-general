@@ -14,7 +14,7 @@ on:
       semgrep-version:
         description: "Semgrep version to install (pinned for reproducibility)"
         type: string
-        default: "1.165.0"
+        default: "1.170.0"
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
@@ -59,9 +59,12 @@ jobs:
       - name: Install Semgrep
         env:
           SEMGREP_VERSION: ${{ inputs.semgrep-version }}
-        run: 'pip install --only-binary :all: "semgrep==${SEMGREP_VERSION}"'
+        run: 'pip install --user --only-binary :all: "semgrep==${SEMGREP_VERSION}"'
 
       - name: Run Semgrep
-        run: semgrep scan --config "$SEMGREP_CONFIG"
         env:
           SEMGREP_CONFIG: ${{ inputs.config }}
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          semgrep scan --config "$SEMGREP_CONFIG"
