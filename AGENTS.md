@@ -19,7 +19,10 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
    CI will block the PR.
 
 3. **Third-party action SHAs are managed by Renovate.** Do not edit them manually.
-   GitHub-owned actions (`actions/*`) may use a major version tag.
+   GitHub-owned actions (`actions/*`) may use a major version tag. One documented
+   exception: an **orphaned SHA** (the pinned commit 404s upstream, e.g. after a
+   force-push/tag rewrite) is a broken-CI bug, not a routine bump — fix it by hand,
+   verified against `git ls-remote`/the releases API, and note the incident inline.
 
 4. **No `secrets: inherit`.** Only explicitly declared secrets are passed to callers.
    Workflows requiring secrets must gate against fork PRs in `self-test.yml`.

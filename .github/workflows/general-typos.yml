@@ -42,7 +42,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # The v1.23.0 SHA previously pinned here was orphaned upstream (404s on
+      # crate-ci/typos) and broke this job fleet-wide; re-pinned to the current
+      # release's real commit, verified via `git ls-remote`.
       - name: Run typos-action
-        uses: crate-ci/typos@20159213ebbf4e06e1bdf6bf838bc11c31f13118 # v1.23.0
+        uses: crate-ci/typos@bee27e3a4fd1ea2111cf90ab89cd076c870fce14 # v1.48.0
         with:
           config: ${{ inputs.config }}
