@@ -34,7 +34,15 @@ permissions: {}
 
 jobs:
   sonarcloud:
-    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    # SonarCloud analysis of private repos requires a paid plan (free on
+    # public repos). SONAR_TOKEN being present doesn't imply entitlement — a
+    # private repo without a paid plan gets a 403, not a missing-secret error.
+    # Skip cleanly on private so that 403 never fails the check; still runs
+    # on public.
+    if: |
+      github.event.repository.visibility == 'public' && (
+        inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false
+      )
     name: SonarCloud
     runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
