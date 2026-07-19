@@ -140,10 +140,14 @@ jobs:
             # scan-fix(grype:self-scan): exclude grype's own binary — installed to
             # /usr/local/bin/grype (GHA) or /bin/grype (host/act); without this,
             # CVEs in grype's own Go stdlib/docker deps surface as project findings.
+            # grype >= 0.114.0 rejects absolute exclusion paths ("invalid exclusion
+            # pattern(s) ... must start with one of: './', '*/', or '**/'") — exclusions
+            # are matched relative to the scan root, so a '**/' prefix is required and
+            # still matches these binary paths at any depth under the scanned tree.
             grype "dir:${SCAN_PATH}" \
-              --exclude '/bin/grype' \
-              --exclude '/usr/local/bin/grype' \
-              --exclude '/usr/bin/grype' \
+              --exclude '**/bin/grype' \
+              --exclude '**/usr/local/bin/grype' \
+              --exclude '**/usr/bin/grype' \
               --fail-on "$SEVERITY" \
               -o sarif \
               > grype.sarif 2> grype.stderr.log \
