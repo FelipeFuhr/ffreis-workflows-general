@@ -45,7 +45,6 @@ on:
       runner:
         description: |
           JSON-encoded runner label. Default: GitHub-hosted ubuntu-latest.
-          For scheduled cron jobs on AWS Spot: '["self-hosted","spot","linux","x64"]'
         required: false
         type: string
         default: '["ubuntu-latest"]'
