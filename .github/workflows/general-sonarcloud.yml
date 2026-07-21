@@ -21,7 +21,6 @@ on:
       runner:
         description: |
           JSON-encoded runner label(s). Default: GitHub-hosted ubuntu-latest.
-          Self-hosted homelab box (private repos only): '["self-hosted","local"]'
         required: false
         type: string
         default: '["ubuntu-latest"]'
