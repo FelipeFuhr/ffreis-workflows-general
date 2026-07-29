@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.8.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.8.0...v1.8.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **lefthook:** sync remote configs in the heavy-tier workflow too ([#135](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/135)) ([0dda7d7](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/0dda7d7d826599eda2419a59f37af0dc6a97fff3))
+
 ## [1.8.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.7.1...v1.8.0) (2026-07-29)
 
 
