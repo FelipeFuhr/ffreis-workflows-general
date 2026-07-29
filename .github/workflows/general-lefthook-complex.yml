@@ -162,6 +162,37 @@ jobs:
           set -euo pipefail
           eval "$BOOTSTRAP" # nosemgrep: yaml.github-actions.security.run-shell-injection.run-shell-injection
 
+      # Same root cause as general-lefthook.yml before v1.8.0: in lefthook 1.x only
+      # `install` populates .git/info/lefthook-remotes; `run` reads that cache and never
+      # fills it, and a CI checkout is a cold clone. The complex/release tiers are
+      # defined ENTIRELY in the standards remote, so the symptom here differs from the
+      # pre-commit case — measured on a cold clone of a consumer:
+      #   without this step: `Error: Hook complex doesn't exist in the config`, exit 1
+      #   with it:           tier resolves and its commands run (secret-scan-full, ...)
+      # So the tier failed loudly rather than passing empty. It went unnoticed because
+      # these jobs are workflow_dispatch-only. A consumer that ALSO defines the tier
+      # locally is the dangerous variant: the hook resolves and silently runs only the
+      # local subset, skipping every remote check.
+      - name: Sync lefthook remote configs
+        shell: bash
+        env:
+          LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
+        run: |
+          set -euo pipefail
+          LEFTHOOK="${LEFTHOOK_BIN}" "${LEFTHOOK_BIN}" install
+
+          # A fetch failure is silent — lefthook reports no error and the tier below just
+          # skips every remote command. Fail loudly instead.
+          if grep -qE '^[[:space:]]*remotes:' lefthook.yml 2>/dev/null; then
+            cache="$(git rev-parse --git-path info/lefthook-remotes)"
+            if [[ ! -d "$cache" ]]; then
+              echo "::error::lefthook.yml declares 'remotes:' but ${cache} was not created." >&2
+              echo "The heavy tier would run no remote commands and this job would pass regardless." >&2
+              exit 1
+            fi
+            echo "remote config cache present: ${cache}"
+          fi
+
       - name: Run heavy lefthook tier
         shell: bash
         env:
