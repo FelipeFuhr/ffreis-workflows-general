@@ -1,5 +1,22 @@
 # Changelog
 
+## [1.8.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.7.1...v1.8.0) (2026-07-29)
+
+
+### Features
+
+* add `runner` input to actionlint/config-validate/gitleaks/shellcheck ([#124](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/124)) ([ed85f5d](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/ed85f5d86978d772269afecbfe526669ecedf324))
+* **runner:** add opt-in `runner` input to remaining reusable workflows ([#126](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/126)) ([73d9a03](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/73d9a038a3fa9147af0d7717d09d6ca71d39fa6b))
+
+
+### Bug Fixes
+
+* **grype:** use relative/glob exclusion patterns for grype &gt;= 0.114.0 ([#129](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/129)) ([80d54b3](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/80d54b36b6b087033e2ede41a5739bb1e7ba2b49))
+* **lefthook:** sync remote configs before running hooks in CI ([#134](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/134)) ([9c35c13](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/9c35c13b03bbf17b10a8ea3672ee7b3baadbb9db))
+* pin unpinned action refs and drop npm global install in markdownlint ([#128](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/128)) ([db27e4b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/db27e4b6ef21f495a979411b4b4ad25f5cfa2e25))
+* private-repo CI gaps (orphaned typos SHA, pr-size label, GHAS/Sonar entitlement) ([#130](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/130)) ([d2bee96](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/d2bee968dbba2a38de4a7d87290f4cf6e9658084))
+* **semgrep:** install semgrep with --user for self-hosted runner compat ([#127](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/127)) ([eed1897](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/eed18971e3eefa381877231fcb3f510117687be8))
+
 ## [1.7.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.7.0...v1.7.1) (2026-06-27)
 
 
