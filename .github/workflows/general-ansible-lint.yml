@@ -1,0 +1,126 @@
+name: General / ansible-lint
+
+# Reusable workflow: lints Ansible playbooks/roles with ansible-lint, plus a
+# yamllint pass scoped to the same YAML content. Complements general-config-validate
+# (generic YAML/JSON parse-only) and general-shellcheck (shell scripts) — this one
+# checks Ansible semantics (task syntax, idempotency, deprecated modules, FQCN, etc.).
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: Directory containing Ansible playbooks/roles to lint
+        required: false
+        type: string
+        default: .
+      files:
+        description: Optional newline-separated list of YAML files to lint (relative to working-directory)
+        required: false
+        type: string
+        default: ""
+      ansible-lint-config:
+        description: Path to an ansible-lint config file (.ansible-lint / .ansible-lint.yml); ansible-lint's own discovery is used when empty
+        required: false
+        type: string
+        default: ""
+      yamllint-config:
+        description: Path to a yamllint config file; a relaxed built-in default is used when empty
+        required: false
+        type: string
+        default: ""
+      fail-on-error:
+        description: Fail the workflow if ansible-lint or yamllint find any issues
+        required: false
+        type: boolean
+        default: true
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 15
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+
+permissions: {}
+
+jobs:
+  ansible-lint:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    runs-on: ubuntu-latest
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Install ansible-lint and yamllint
+        run: |
+          set -euo pipefail
+          python3 -m pip install --quiet --user ansible-lint yamllint
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Run ansible-lint + yamllint
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          FILES_INPUT: ${{ inputs.files }}
+          ANSIBLE_LINT_CONFIG: ${{ inputs.ansible-lint-config }}
+          YAMLLINT_CONFIG: ${{ inputs.yamllint-config }}
+          FAIL_ON_ERROR: ${{ inputs.fail-on-error }}
+        run: |
+          set -euo pipefail
+          cd "$WORKING_DIRECTORY"
+
+          ansible-lint --version
+          yamllint --version
+
+          files=()
+          if [[ -n "$FILES_INPUT" ]]; then
+            while IFS= read -r line; do
+              [[ -z "$line" ]] && continue
+              files+=("$line")
+            done <<< "$FILES_INPUT"
+          else
+            while IFS= read -r -d '' f; do
+              files+=("${f#./}")
+            done < <(find . -type f \( -name '*.yml' -o -name '*.yaml' \) -not -path '*/.git/*' -print0)
+          fi
+
+          if [[ "${#files[@]}" -eq 0 ]]; then
+            echo "No YAML files found; skipping."
+            exit 0
+          fi
+
+          rc=0
+
+          echo "::group::yamllint (${#files[@]} file(s))"
+          if [[ -n "$YAMLLINT_CONFIG" ]]; then
+            yaml_cfg=(-c "$YAMLLINT_CONFIG")
+          else
+            yaml_cfg=(-d "{extends: default, rules: {line-length: disable, document-start: disable, truthy: {allowed-values: ['true', 'false', 'yes', 'no']}}}")
+          fi
+          yamllint "${yaml_cfg[@]}" -f github "${files[@]}" || rc=1
+          echo "::endgroup::"
+
+          echo "::group::ansible-lint (${#files[@]} file(s))"
+          if [[ -n "$ANSIBLE_LINT_CONFIG" ]]; then
+            lint_cfg=(-c "$ANSIBLE_LINT_CONFIG")
+          else
+            lint_cfg=()
+          fi
+          ansible-lint "${lint_cfg[@]}" "${files[@]}" || rc=1
+          echo "::endgroup::"
+
+          if [[ "$rc" -ne 0 && "$FAIL_ON_ERROR" == "true" ]]; then
+            echo "Ansible lint validation failed." >&2
+            exit 1
+          fi
+          echo "Ansible lint validation passed."

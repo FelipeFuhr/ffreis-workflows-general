@@ -1,5 +1,58 @@
 # Changelog
 
+## [1.9.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.8.1...v1.9.0) (2026-08-01)
+
+
+### Features
+
+* add general-ansible-lint reusable workflow ([#123](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/123)) ([41d52d9](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/41d52d95cba4044d8efc64d335e9c3dc66afc9c9))
+
+## [1.8.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.8.0...v1.8.1) (2026-07-29)
+
+
+### Bug Fixes
+
+* **lefthook:** sync remote configs in the heavy-tier workflow too ([#135](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/135)) ([0dda7d7](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/0dda7d7d826599eda2419a59f37af0dc6a97fff3))
+
+## [1.8.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.7.1...v1.8.0) (2026-07-29)
+
+
+### Features
+
+* add `runner` input to actionlint/config-validate/gitleaks/shellcheck ([#124](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/124)) ([ed85f5d](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/ed85f5d86978d772269afecbfe526669ecedf324))
+* **runner:** add opt-in `runner` input to remaining reusable workflows ([#126](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/126)) ([73d9a03](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/73d9a038a3fa9147af0d7717d09d6ca71d39fa6b))
+
+
+### Bug Fixes
+
+* **grype:** use relative/glob exclusion patterns for grype &gt;= 0.114.0 ([#129](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/129)) ([80d54b3](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/80d54b36b6b087033e2ede41a5739bb1e7ba2b49))
+* **lefthook:** sync remote configs before running hooks in CI ([#134](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/134)) ([9c35c13](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/9c35c13b03bbf17b10a8ea3672ee7b3baadbb9db))
+* pin unpinned action refs and drop npm global install in markdownlint ([#128](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/128)) ([db27e4b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/db27e4b6ef21f495a979411b4b4ad25f5cfa2e25))
+* private-repo CI gaps (orphaned typos SHA, pr-size label, GHAS/Sonar entitlement) ([#130](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/130)) ([d2bee96](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/d2bee968dbba2a38de4a7d87290f4cf6e9658084))
+* **semgrep:** install semgrep with --user for self-hosted runner compat ([#127](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/127)) ([eed1897](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/eed18971e3eefa381877231fcb3f510117687be8))
+
+## [1.7.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.7.0...v1.7.1) (2026-06-27)
+
+
+### Bug Fixes
+
+* orphaned dependency-review SHA + gitleaks comment-guard false-positive ([#121](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/121)) ([b2b0084](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/b2b0084a62265a79a16a7ec04a6f56b464e1bfc1))
+
+## [1.7.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.6.0...v1.7.0) (2026-06-25)
+
+
+### Features
+
+* **ci:** remove general-quality-seo and general-quality-live workflows ([#113](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/113)) ([1178fcd](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/1178fcdb8ee4baede5d630afabd26e8ecf82b0bf))
+
+
+### Bug Fixes
+
+* **gitleaks:** restrict allowlist grep to line-start only ([4746335](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/474633563723ef7b055ca9af2c00564dd217d03e))
+* **grype:** capture exit code with || to survive shell -e flag ([18fd5ef](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/18fd5efa47d47bdc4cc9418ea5b26f88246772f8))
+* **grype:** exclude grype binary from its own filesystem scan ([#119](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/119)) ([9bc50ce](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/9bc50ce3a8973a01e2ae2c5a5dca437e6de99c81))
+* **grype:** exit-on-error + add 6 new reusable workflows (checkov, dep-review, markdownlint, pr-size, sbom, typos) ([#118](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/118)) ([3adec90](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/3adec9071fcbfa4c008ba1c8d0b9947307e89eed))
+
 ## [1.6.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.5.0...v1.6.0) (2026-06-12)
 
 

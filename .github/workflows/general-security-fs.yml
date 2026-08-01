@@ -58,7 +58,6 @@ on:
       runner:
         description: |
           JSON-encoded runner label. Default: GitHub-hosted ubuntu-latest.
-          For scheduled cron jobs on AWS Spot: '["self-hosted","spot","linux","x64"]'
         required: false
         type: string
         default: '["ubuntu-latest"]'
@@ -137,7 +136,17 @@ jobs:
             # GHA runner invokes `shell: bash` with -e, so a non-zero grype exit
             # (code 2 = matches found) would kill the shell before exit_code=$? runs.
             # Use && / || to suppress -e while still capturing the exit code.
+            # scan-fix(grype:self-scan): exclude grype's own binary — installed to
+            # /usr/local/bin/grype (GHA) or /bin/grype (host/act); without this,
+            # CVEs in grype's own Go stdlib/docker deps surface as project findings.
+            # grype >= 0.114.0 rejects absolute exclusion paths ("invalid exclusion
+            # pattern(s) ... must start with one of: './', '*/', or '**/'") — exclusions
+            # are matched relative to the scan root, so a '**/' prefix is required and
+            # still matches these binary paths at any depth under the scanned tree.
             grype "dir:${SCAN_PATH}" \
+              --exclude '**/bin/grype' \
+              --exclude '**/usr/local/bin/grype' \
+              --exclude '**/usr/bin/grype' \
               --fail-on "$SEVERITY" \
               -o sarif \
               > grype.sarif 2> grype.stderr.log \
@@ -193,7 +202,8 @@ jobs:
           set -euo pipefail
           cd "$WORKING_DIRECTORY"
           if [[ -z "$CONFIG_PATH" && -f ".gitleaks.toml" ]]; then
-            if grep -qF '[[allowlist]]' .gitleaks.toml; then
+            # Anchor to line-start to avoid matching comments that reference [[allowlist]] in prose.
+            if grep -qE '^[[:space:]]*\[\[allowlist\]\]' .gitleaks.toml; then
               echo "::error::.gitleaks.toml uses legacy '[[allowlist]]' (array) format; expected a single '[allowlist]' table."
               exit 2
             fi

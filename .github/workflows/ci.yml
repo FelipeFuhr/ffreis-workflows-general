@@ -79,6 +79,13 @@ jobs:
     with:
       working-directory: examples/hello
 
+  ansible-lint:
+    permissions:
+      contents: read
+    uses: ./.github/workflows/general-ansible-lint.yml
+    with:
+      working-directory: examples/hello/ansible
+
   code-quality:
     permissions:
       contents: read

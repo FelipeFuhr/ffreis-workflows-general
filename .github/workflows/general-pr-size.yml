@@ -18,11 +18,17 @@ on:
         required: false
         type: boolean
         default: false
+      runner:
+        description: |
+          JSON-encoded runner label(s). Default: GitHub-hosted ubuntu-latest.
+        required: false
+        type: string
+        default: '["ubuntu-latest"]'
 
 jobs:
   pr-size:
     if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
-    runs-on: ubuntu-latest
+    runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
     permissions:
       contents: read
@@ -105,15 +111,42 @@ jobs:
 
           print(f"PR #{pr_number}: {added} added, {removed} removed, {total_changed} total -> {size_label}")
 
-          # Apply label
-          try:
-              subprocess.run(
-                  ["gh", "pr", "edit", str(pr_number), "--add-label", size_label],
-                  check=True,
-                  capture_output=True
-              )
-              print(f"✓ Applied label: {size_label}")
-          except Exception as e:
-              print(f"::error::Failed to apply label: {e}")
-              sys.exit(1)
+          # Ensure the size/* label exists before applying it. Consumer repos
+          # don't seed size/* labels by default, which previously made this
+          # step fail hard ("could not add label") on every first-time PR.
+          # --force makes creation idempotent (updates color/description if
+          # the label already exists rather than erroring).
+          size_colors = {
+              "size/xs": "0e8a16",
+              "size/s": "5ea603",
+              "size/m": "fbca04",
+              "size/l": "e07800",
+              "size/xl": "d93f0b",
+          }
+          create_result = subprocess.run(
+              [
+                  "gh", "label", "create", size_label,
+                  "--color", size_colors[size_label],
+                  "--description", "PR size (lines changed, excluding lockfiles)",
+                  "--force",
+              ],
+              capture_output=True,
+              text=True,
+              check=False,
+          )
+          if create_result.returncode != 0:
+              print(f"::warning::Could not ensure label {size_label} exists: {create_result.stderr.strip()}")
+
+          # Apply label — non-fatal: a labeling failure must never fail the
+          # PR-size check itself.
+          apply_result = subprocess.run(
+              ["gh", "pr", "edit", str(pr_number), "--add-label", size_label],
+              capture_output=True,
+              text=True,
+              check=False,
+          )
+          if apply_result.returncode == 0:
+              print(f"Applied label: {size_label}")
+          else:
+              print(f"::warning::Failed to apply label {size_label}: {apply_result.stderr.strip()}")
           PY
