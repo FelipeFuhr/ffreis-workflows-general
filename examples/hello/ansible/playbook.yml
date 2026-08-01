@@ -1,0 +1,9 @@
+---
+- name: Configure hello example host
+  hosts: all
+  become: true
+  tasks:
+    - name: Ensure example package is installed
+      ansible.builtin.package:
+        name: curl
+        state: present

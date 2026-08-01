@@ -9,6 +9,7 @@ Reusable, language-agnostic GitHub Actions workflows.
 ## Workflows
 
 - `general-actionlint.yml`: validates GitHub Actions workflow syntax with actionlint.
+- `general-ansible-lint.yml`: lints Ansible playbooks/roles with ansible-lint plus a yamllint pass scoped to the same YAML content.
 - `general-codeql.yml`: enables CodeQL code scanning (uploads alerts to Code Scanning).
 - `general-config-validate.yml`: validates arbitrary YAML (yamllint, relaxed) and JSON (parse) config files so broken config can't land.
 - `general-gitleaks.yml`: scans for secrets with gitleaks (optional SARIF upload).
