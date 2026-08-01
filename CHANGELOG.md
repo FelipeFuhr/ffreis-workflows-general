@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.8.1...v1.9.0) (2026-08-01)
+
+
+### Features
+
+* add general-ansible-lint reusable workflow ([#123](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/123)) ([41d52d9](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/41d52d95cba4044d8efc64d335e9c3dc66afc9c9))
+
 ## [1.8.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.8.0...v1.8.1) (2026-07-29)
 
 
