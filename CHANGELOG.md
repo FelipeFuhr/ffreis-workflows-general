@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.9.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.0...v1.9.1) (2026-08-03)
+
+
+### Bug Fixes
+
+* **grype:** capture exit code + add 6 new reusable workflows ([#120](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/120)) ([0b3cb39](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/0b3cb39dcedfff1b322c6d395dbd49e9edbb441a))
+* **promote-gate:** acquire dev-access cookie before health check ([#139](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/139)) ([c7b164c](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/c7b164ca66671ef277ac977b46cdebb6e708d37e))
+
 ## [1.9.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.8.1...v1.9.0) (2026-08-01)
 
 
