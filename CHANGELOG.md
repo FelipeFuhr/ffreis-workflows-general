@@ -1,5 +1,12 @@
 # Changelog
 
+## [1.9.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.1...v1.9.2) (2026-08-03)
+
+
+### Bug Fixes
+
+* **dispatch:** hardcode default deployer_repo owner to FelipeFuhr ([#140](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/140)) ([ffbebe7](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/ffbebe7395fc62701826ae23cc7c5b9aec11d658))
+
 ## [1.9.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.0...v1.9.1) (2026-08-03)
 
 
