@@ -52,7 +52,11 @@ jobs:
           github-token: ${{ secrets.DISPATCH_TOKEN }}
           script: |
             const websiteName = process.env.WEBSITE_NAME;
-            const defaultRepo = `${context.repo.owner}/ffreis-website-deployer`;
+            // ffreis-website-deployer is a single fleet-wide deployer owned by
+            // FelipeFuhr — it does NOT move with the caller's own owner, so the
+            // default must not be derived from context.repo.owner (that broke
+            // dispatch for every caller repo that migrated to ffreis-org).
+            const defaultRepo = 'FelipeFuhr/ffreis-website-deployer';
             const deployerRepo = process.env.DEPLOYER_REPO || defaultRepo;
             const [owner, repo] = deployerRepo.split('/');
             await github.rest.repos.createDispatchEvent({
