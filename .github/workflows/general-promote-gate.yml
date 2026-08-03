@@ -28,6 +28,15 @@ on:
         required: false
         type: string
         default: '["ubuntu-latest"]'
+      dev_access_path:
+        description: "Cookie-gate token path (e.g. /dev-access). Empty = site has no dev-access gate."
+        required: false
+        type: string
+        default: ""
+    secrets:
+      dev_access_token:
+        description: "Token for the dev-access cookie gate. Required when dev_access_path is set."
+        required: false
 
 permissions: {}
 
@@ -78,16 +87,43 @@ jobs:
             echo "ci_only=false" >> "$GITHUB_OUTPUT"
           fi
 
+      - name: Acquire dev-access cookie
+        if: steps.scope.outputs.ci_only != 'true' && inputs.dev_access_path != ''
+        env:
+          BASE: ${{ inputs.dev_url }}
+          DEV_ACCESS_PATH: ${{ inputs.dev_access_path }}
+          DEV_ACCESS_TOKEN: ${{ secrets.dev_access_token }}
+        run: |
+          set -euo pipefail
+          if [ -z "$DEV_ACCESS_TOKEN" ]; then
+            echo "dev_access_path is set but no dev_access_token secret was passed — cannot pass the cookie gate." >&2
+            exit 1
+          fi
+          status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 -c "$RUNNER_TEMP/dev_access_cookie.txt" \
+            "${BASE%/}${DEV_ACCESS_PATH}?token=${DEV_ACCESS_TOKEN}")
+          case "$status" in
+            2*|301|302) echo "dev-access cookie acquired ($status)" ;;
+            *)
+              echo "Failed to acquire dev-access cookie: $status" >&2
+              exit 1
+              ;;
+          esac
+
       - name: Check dev site is healthy
         if: steps.scope.outputs.ci_only != 'true'
         env:
           BASE: ${{ inputs.dev_url }}
           PATHS: ${{ inputs.paths }}
+          DEV_ACCESS_PATH: ${{ inputs.dev_access_path }}
         run: |
           set -euo pipefail
+          COOKIE_ARGS=()
+          if [ -n "$DEV_ACCESS_PATH" ]; then
+            COOKIE_ARGS=(-b "$RUNNER_TEMP/dev_access_cookie.txt")
+          fi
           FAILED=()
           for path in $PATHS; do
-            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --location "${BASE%/}${path}")
+            status=$(curl -s -o /dev/null -w "%{http_code}" --max-time 15 --location "${COOKIE_ARGS[@]}" "${BASE%/}${path}")
             case "$status" in
               2*|301|302) echo "ok  ${BASE%/}${path} → $status" ;;
               *)
