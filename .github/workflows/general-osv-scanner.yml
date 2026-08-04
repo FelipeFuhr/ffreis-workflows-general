@@ -88,12 +88,17 @@ jobs:
           WORKING_DIRECTORY: ${{ inputs.working-directory }}
           FAIL_ON_VULN: ${{ inputs.fail-on-vuln }}
         run: |
-          set -uo pipefail
+          # GitHub invokes Bash with `-e`; turn it off while collecting OSV's
+          # documented result code, otherwise a non-zero scan exits before the
+          # policy below can decide whether it is actionable.
+          set +e
           osv-scanner scan source --recursive --format sarif \
             --output-file "${GITHUB_WORKSPACE}/osv-scanner.sarif" "$WORKING_DIRECTORY"
           rc=$?
+          set -euo pipefail
           # osv-scanner exit codes: 0 = no vulnerabilities, 1 = vulnerabilities
-          # found, anything else = a real scanner error.
+          # found. A source tree without a supported package manifest returns
+          # 128; that is an inapplicable scan, not a vulnerability or failure.
           if [[ "$rc" -eq 0 ]]; then
             echo "OSV-Scanner: no known vulnerabilities."
           elif [[ "$rc" -eq 1 ]]; then
@@ -101,6 +106,8 @@ jobs:
             if [[ "$FAIL_ON_VULN" == "true" ]]; then
               exit 1
             fi
+          elif [[ "$rc" -eq 128 ]]; then
+            echo "OSV-Scanner: no supported package source found; skipping."
           else
             echo "OSV-Scanner: scanner error (exit ${rc})."
             exit "$rc"
