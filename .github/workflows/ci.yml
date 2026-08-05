@@ -163,8 +163,8 @@ jobs:
       security-events: write
     uses: ./.github/workflows/general-codeql.yml
     with:
-      languages: actions
-      source-root: .github/workflows
+      languages: go
+      source-root: examples/hello/codeql-go
       upload-sarif: false
 
   # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
