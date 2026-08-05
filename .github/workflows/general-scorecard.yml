@@ -12,6 +12,13 @@ on:
         required: false
         type: boolean
         default: false
+      publish-results:
+        description: >-
+          Deprecated compatibility input. This scan-only workflow never publishes;
+          call general-scorecard-publish.yml when OpenSSF publishing is required.
+        required: false
+        type: boolean
+        default: false
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
