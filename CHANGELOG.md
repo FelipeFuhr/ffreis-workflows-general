@@ -1,5 +1,15 @@
 # Changelog
 
+## [1.9.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.2...v1.9.3) (2026-08-07)
+
+
+### Bug Fixes
+
+* **codeql:** install Go before autobuild ([#144](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/144)) ([1047dcb](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/1047dcb3bb267c7672fcdea90d6deac71c7a6fe0))
+* **osv:** skip repositories without package sources ([#142](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/142)) ([f067432](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/f067432eac0bcfacd56b95b629881ada03bae3d2))
+* **scorecard:** accept legacy publish input ([#143](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/143)) ([9c53c87](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/9c53c87abf754792bfbf5f94dec9b9df17fc092f))
+* **shellcheck:** resolve $(dirname "$0") sourcing via -P SCRIPTDIR ([#145](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/145)) ([fba4a4a](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/fba4a4ae47d3b9722322ae2f89ebcb6fccbef1de))
+
 ## [1.9.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.1...v1.9.2) (2026-08-03)
 
 
