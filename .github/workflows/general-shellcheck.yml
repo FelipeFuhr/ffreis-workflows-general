@@ -85,4 +85,8 @@ jobs:
             exit 0
           fi
 
-          shellcheck -x "${files[@]}"
+          # -P SCRIPTDIR: shellcheck can't statically resolve source paths
+          # built from `$(dirname "$0")` (the value of $0 is only known at
+          # runtime); SCRIPTDIR tells it to look relative to each sourcing
+          # file's own directory, which is what that idiom actually does.
+          shellcheck -x -P SCRIPTDIR "${files[@]}"
