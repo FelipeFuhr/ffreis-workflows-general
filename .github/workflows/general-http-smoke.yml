@@ -28,7 +28,7 @@ on:
         default: false
       runner:
         description: |
-          JSON-encoded runner label(s). Default: self-hosted [self-hosted, local] (this fleet's runners). Pass '["ubuntu-latest"]' to opt back into GitHub-hosted.
+          JSON-encoded runner label(s). Default: self-hosted [self-hosted, local]. Pass '["ubuntu-latest"]' for GitHub-hosted.
         required: false
         type: string
         default: '["self-hosted","local"]'
