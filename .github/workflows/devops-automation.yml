@@ -28,6 +28,10 @@ jobs:
     uses: ./.github/workflows/general-scorecard.yml
     with:
       upload-sarif: true
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   stale:
     if: |
@@ -41,6 +45,10 @@ jobs:
     uses: ./.github/workflows/general-stale.yml
     with:
       only: "both"
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   release-please:
     if: vars.RELEASE_PLEASE_ENABLED != 'false' && github.event_name == 'push'
@@ -51,5 +59,9 @@ jobs:
     uses: ./.github/workflows/general-release-please.yml
     with:
       target-branch: "main"
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
     secrets:
       RELEASE_PLEASE_TOKEN: ${{ secrets.RELEASE_PLEASE_TOKEN }}

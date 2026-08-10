@@ -47,6 +47,10 @@ jobs:
       working-directory: "."
       scan-history: true
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   trivy-fs:
     needs: changes
@@ -64,6 +68,10 @@ jobs:
     with:
       scan-ref: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   grype-fs:
     needs: changes
@@ -81,6 +89,10 @@ jobs:
     with:
       path: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   osv:
     needs: changes
@@ -98,6 +110,10 @@ jobs:
     with:
       working-directory: "."
       upload-sarif: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false }}
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   grype-pr-diff:
     if: github.event_name == 'pull_request' && !github.event.pull_request.draft
@@ -109,3 +125,7 @@ jobs:
     uses: ./.github/workflows/general-grype-pr-diff.yml
     with:
       upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'

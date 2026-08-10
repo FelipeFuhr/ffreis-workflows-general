@@ -16,11 +16,21 @@ jobs:
     permissions:
       contents: read
     uses: ./.github/workflows/general-workflows-policy.yml
+    with:
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   actionlint:
     permissions:
       contents: read
     uses: ./.github/workflows/general-actionlint.yml
+    with:
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   ci-local-coverage:
     permissions:
@@ -29,6 +39,10 @@ jobs:
     with:
       mode: defines
       enforce: true
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   osv-scanner:
     permissions:
@@ -39,6 +53,10 @@ jobs:
     with:
       working-directory: .
       upload-sarif: true
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   semantic-pr:
     if: github.event_name == 'pull_request'
@@ -47,6 +65,10 @@ jobs:
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       title: "feat: self-test"
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   labeler:
     if: github.event_name == 'pull_request'
@@ -64,6 +86,10 @@ jobs:
           {"label":"example","patterns":["examples/**"]},
           {"label":"js","patterns":["**/*.js"]}
         ]
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   shellcheck:
     permissions:
@@ -71,6 +97,10 @@ jobs:
     uses: ./.github/workflows/general-shellcheck.yml
     with:
       working-directory: .
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   config-validate:
     permissions:
@@ -78,6 +108,10 @@ jobs:
     uses: ./.github/workflows/general-config-validate.yml
     with:
       working-directory: examples/hello
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   ansible-lint:
     permissions:
@@ -93,6 +127,10 @@ jobs:
     with:
       working-directory: .
       enable-shell: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   code-quality-examples:
     permissions:
@@ -102,6 +140,10 @@ jobs:
       working-directory: examples/hello
       enable-go: false
       enable-shell: true
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   pre-commit:
     permissions:
@@ -110,6 +152,10 @@ jobs:
     with:
       working-directory: .
       require-config: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   stale:
     permissions:
@@ -121,6 +167,10 @@ jobs:
       dry-run: true
       stale-days: 1
       close-days: 1
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   release-please:
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -133,6 +183,10 @@ jobs:
       dry-run: true
       config-file: examples/hello/release-please-config.json
       manifest-file: examples/hello/release-please-manifest.json
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   scorecard:
     # scan-only — general-scorecard.yml no longer needs id-token (publish was split out).
@@ -143,6 +197,10 @@ jobs:
     uses: ./.github/workflows/general-scorecard.yml
     with:
       upload-sarif: true
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   scorecard-publish:
     # Self-test for the publish workflow. Its job is gated off on pull_request, so this
@@ -155,6 +213,10 @@ jobs:
     uses: ./.github/workflows/general-scorecard-publish.yml
     with:
       upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   codeql:
     permissions:
@@ -166,6 +228,10 @@ jobs:
       languages: go
       source-root: examples/hello/codeql-go
       upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
   # (the consolidated bundle exercises all three). Also keeps ci.yml within
@@ -179,6 +245,10 @@ jobs:
     with:
       working-directory: examples/hello
       upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   grype-pr-diff:
     if: github.event_name == 'pull_request'
@@ -192,6 +262,10 @@ jobs:
       upload-sarif: false
       manifest-patterns: |
         examples/hello/package.json
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   run-commands:
     permissions:
@@ -205,6 +279,10 @@ jobs:
         set -euo pipefail
         test -f index.js
         node --version >/dev/null
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   http-smoke:
     permissions:
@@ -216,6 +294,10 @@ jobs:
       paths: |-
         /
       timeout-seconds: 20
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   lefthook-minimal:
     permissions:
@@ -231,6 +313,10 @@ jobs:
       run-pre-commit: false
       run-commit-msg: false
       run-pre-push: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   lefthook-complex:
     # Exercises general-lefthook-complex.yml against this repo's own root
@@ -247,6 +333,10 @@ jobs:
       install-gitleaks: false
       lefthook-bootstrap-command: "mkdir -p .bin && curl -fsSL https://github.com/evilmartians/lefthook/releases/download/v1.7.10/lefthook_1.7.10_Linux_x86_64 -o .bin/lefthook && chmod +x .bin/lefthook"
       lefthook-bin: ".bin/lefthook"
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
 
   semgrep:
@@ -255,6 +345,10 @@ jobs:
     uses: ./.github/workflows/general-semgrep.yml
     with:
       working-directory: examples/hello
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   website-dispatch:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
@@ -264,5 +358,9 @@ jobs:
     with:
       website_name: hello
       dry_run: true
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
     secrets:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

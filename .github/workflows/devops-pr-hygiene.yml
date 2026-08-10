@@ -17,6 +17,10 @@ jobs:
     uses: ./.github/workflows/general-semantic-pr.yml
     with:
       require-scope: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   commit-messages:
     permissions:
@@ -24,6 +28,10 @@ jobs:
     uses: ./.github/workflows/general-commit-messages.yml
     with:
       require-scope: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   pr-summary:
     if: github.event.action == 'opened'
@@ -31,6 +39,11 @@ jobs:
       contents: read
       pull-requests: write
     uses: ./.github/workflows/general-pr-summary.yml
+    with:
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
 
   actionlint:
     permissions:
@@ -38,3 +51,7 @@ jobs:
     uses: ./.github/workflows/general-actionlint.yml
     with:
       working-directory: "."
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
