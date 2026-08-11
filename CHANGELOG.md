@@ -1,5 +1,19 @@
 # Changelog
 
+## [2.0.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.3...v2.0.0) (2026-08-11)
+
+
+### ⚠ BREAKING CHANGES
+
+* **runner:** callers that rely on the implicit ubuntu-latest default now land on [self-hosted, local] instead. Anyone who genuinely needs a GitHub-hosted runner (e.g. a matrix build targeting macOS/Windows) must now pass runner: '["ubuntu-latest"]' explicitly.
+
+### Bug Fixes
+
+* **ci:** fall back to ubuntu-latest when runner input is empty ([#151](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/151)) ([33fbd44](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/33fbd441595d70af7b4c4f042ecc2b97e0de3861))
+* **ci:** pin own internal CI to ubuntu-latest — public repo can't use self-hosted ([#149](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/149)) ([ca56176](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/ca56176da813cd4702f2a93dafecdfcf46fc3297))
+* **ci:** remove redundant standalone scorecards.yml ([#148](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/148)) ([ed0154b](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/ed0154b4c55e6dffc3549eb3e9b9c0bed965ddc7))
+* **runner:** default the runner input to self-hosted, not ubuntu-latest ([#147](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/147)) ([9b4b016](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/9b4b0166ec652665b5f37e03766eccc202419e51))
+
 ## [1.9.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.2...v1.9.3) (2026-08-07)
 
 
