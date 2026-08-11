@@ -156,7 +156,15 @@ jobs:
       # a fresh clone of a consumer: `run pre-commit` alone executed 0 commands;
       # `install` then `run` executed all 9. (2.1.x auto-syncs on `run`; the fleet
       # pins 1.7.10, and this step is correct for both.)
+      #
+      # Only runs when at least one hook-execution step below will actually use the
+      # installed binary. Without this guard, an install-phase-only caller (bootstrap
+      # command ":" and all three run-* flags false — e.g. to test only the tool-install
+      # steps above) still tries to `install` a binary that was intentionally never
+      # downloaded, and fails with "no such file or directory" for no reason: nothing
+      # downstream would have read the synced cache anyway.
       - name: Sync lefthook remote configs
+        if: inputs.run-pre-commit || inputs.run-commit-msg || inputs.run-pre-push
         shell: bash
         env:
           LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
