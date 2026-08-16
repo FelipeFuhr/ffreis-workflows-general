@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.0...v2.0.1) (2026-08-16)
+
+
+### Bug Fixes
+
+* **ci:** re-pin orphaned anchore/sbom-action SHA ([#153](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/153)) ([d5beab4](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/d5beab44a7333ccde2b5766601ad88969d9789d6))
+
 ## [2.0.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v1.9.3...v2.0.0) (2026-08-11)
 
 
