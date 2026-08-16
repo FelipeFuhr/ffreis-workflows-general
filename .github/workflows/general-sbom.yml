@@ -51,8 +51,12 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # The v0.17.0 SHA previously pinned here was orphaned upstream (404s on
+      # anchore/sbom-action) and broke this job fleet-wide (every SBOM run
+      # failed with "unable to resolve action"); re-pinned to the current
+      # release's real commit, verified via `git ls-remote`.
       - name: Generate SBOM
-        uses: anchore/sbom-action@78450e4ce6f64e0caf90f45a4b37fcd6239a8b73 # v0.17.0
+        uses: anchore/sbom-action@d94f46e13c6c62f59525ac9a1e147a99dc0b9bf5 # v0.17.0
         with:
           path: ${{ inputs.path }}
           format: ${{ inputs.format }}
