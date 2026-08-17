@@ -156,7 +156,23 @@ jobs:
       # a fresh clone of a consumer: `run pre-commit` alone executed 0 commands;
       # `install` then `run` executed all 9. (2.1.x auto-syncs on `run`; the fleet
       # pins 1.7.10, and this step is correct for both.)
+      # scan-fix(ci:unguarded-step): gated on at least one hook actually running.
+      # This step calls `"$LEFTHOOK_BIN" install`, which requires the binary to
+      # exist — but a caller is allowed to bootstrap NOTHING. `ci.yml`'s own
+      # `lefthook-minimal` job does exactly that on purpose: it passes
+      # `lefthook-bootstrap-command: ":"` (a shell no-op) with every `run-*`
+      # input false, to prove the workflow's setup path is sound without
+      # installing a toolchain. On that configuration `.bin/lefthook` is never
+      # created, so this step died with `No such file or directory` (exit 127)
+      # and failed a job whose entire point is that it does nothing.
+      #
+      # It went unnoticed because the job is draft-gated: the failure only
+      # surfaces on the first non-draft run, long after the change that caused
+      # it. Syncing remotes is pointless when no hook will run, so this guard
+      # costs nothing, and the loud-failure behaviour below is preserved intact
+      # for every caller that does run hooks.
       - name: Sync lefthook remote configs
+        if: inputs.run-pre-commit || inputs.run-commit-msg || inputs.run-pre-push
         shell: bash
         env:
           LEFTHOOK_BIN: ${{ inputs.lefthook-bin }}
