@@ -67,5 +67,22 @@ jobs:
           if [[ -n "$CONFIG" ]]; then
             args+=("--config" "$CONFIG")
           fi
-          # shellcheck disable=SC2086
-          npx --yes markdownlint-cli2@0.23.1 "${args[@]}" $GLOBS
+          # scan-fix(ci:globstar): split GLOBS into an array with `read` and pass
+          # each element quoted, instead of unquoted `$GLOBS` — bash was
+          # pathname-expanding "**/*.md" itself (this shell never sets
+          # `shopt -s globstar`), which degrades `**` to a single directory
+          # level and silently skipped nested dirs such as docs/adr/**.
+          # Confirmed live: a job on a private consumer repo logged
+          # "Finding: docs/dependency-caching.md docs/hardware.md" — only the
+          # 2 top-level docs/*.md files, while the repo has 30+ markdown files.
+          # markdownlint-cli2 uses globby internally and expands `**` (and
+          # `#dir` negation) patterns itself correctly when it receives the raw
+          # pattern string unexpanded — so quote and let it, per the tool's own
+          # docs: "quoting arguments is recommended" to avoid shell expansion.
+          glob_args=()
+          while IFS= read -r line; do
+            [[ -z "$line" ]] && continue
+            read -ra words <<< "$line"
+            glob_args+=("${words[@]}")
+          done <<< "$GLOBS"
+          npx --yes markdownlint-cli2@0.23.1 "${args[@]}" "${glob_args[@]}"

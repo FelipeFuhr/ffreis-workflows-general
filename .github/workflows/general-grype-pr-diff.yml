@@ -89,9 +89,18 @@ jobs:
           any_changed=false
           while IFS= read -r pattern; do
             [ -z "$pattern" ] && continue
-            # Intentional glob expansion: patterns like 'requirements*.txt' must expand.
-            # shellcheck disable=SC2086
-            if git diff --name-only "${BASE_SHA}...HEAD" -- $pattern 2>/dev/null | grep -q .; then
+            # scan-fix(ci:globstar): quote "$pattern" instead of unquoted $pattern
+            # — bash was pathname-expanding patterns like *.tf itself before git
+            # ever saw them. That only matches files bash's single-level glob
+            # can see in the working tree at HEAD, so when a same-named
+            # top-level file happens to exist (e.g. a root main.tf), bash
+            # collapses the pattern to that literal match and DROPS nested
+            # matches like infra/network.tf — same silent-truncation bug class
+            # as the markdownlint ** fix in this PR, confirmed by local repro.
+            # git's own pathspec matcher already expands * (and would expand
+            # ** with :(glob) magic) recursively across directories on its
+            # own — quoting stops bash from pre-expanding and lets git do it.
+            if git diff --name-only "${BASE_SHA}...HEAD" -- "$pattern" 2>/dev/null | grep -q .; then
               any_changed=true
               break
             fi
