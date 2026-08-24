@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 SHELL         := /usr/bin/env bash
 
-.PHONY: help lint validate secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
+.PHONY: help lint validate test secrets-scan-staged lefthook-bootstrap lefthook-install hooks setup
 
 help: ## Show available targets
 	@awk 'BEGIN {FS = ":.*##"} /^[a-zA-Z_-]+:.*##/ {printf "\033[36m%-18s\033[0m %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -14,6 +14,9 @@ lint: ## Lint workflow YAML (requires actionlint)
 	actionlint
 
 validate: lint ## Alias for lint
+
+test: ## Run repo self-checks (no live-Actions run required)
+	bash scripts/test-select-shell-files.sh
 
 secrets-scan-staged: ## Scan staged files for secrets
 	@command -v gitleaks >/dev/null 2>&1 || { \

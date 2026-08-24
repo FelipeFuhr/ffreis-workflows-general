@@ -35,22 +35,40 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
    ```
 
+7. **Non-trivial inline `run:` bash worth testing outside a live Actions run gets
+   a mirrored copy in `scripts/`, guarded by a drift test.** A reusable workflow's
+   `run:` steps only ever see the *caller's* checkout — `uses:` never gives you
+   this repo's own files at runtime, so logic can't be `source`d from a committed
+   script the way a normal single-repo project would. Instead: write the logic
+   once as a standalone `scripts/<name>.sh` (locally runnable, testable, and
+   reusable for fleet-wide blast-radius audits), wrap the actual logic in
+   `# BEGIN <name>` / `# END <name>` marker comments, paste an identical copy
+   between the same markers inside the workflow's `run: |` block, and add a
+   `scripts/test-<name>.sh` self-check (wired into `make test`) that diffs the
+   two marked regions (indentation-stripped, since the YAML copy is nested
+   inside a block scalar) so they can't silently diverge. See
+   `scripts/select-shell-files.sh` / `scripts/test-select-shell-files.sh` for the
+   reference instance (`general-shellcheck.yml`'s file selector).
+
 ## Structure
 
 ```
 .github/workflows/
-  general-*.yml   ← reusable library (what consumers call)
-  devops-*.yml    ← repo-maintenance (stale, labeling, scorecard — exempt from self-test)
-  ci.yml          ← self-test orchestrator
-examples/hello/   ← canonical test subject for ci.yml
-Makefile          ← setup, lint, secrets-scan-staged, hooks
+  general-*.yml         ← reusable library (what consumers call)
+  devops-*.yml          ← repo-maintenance (stale, labeling, scorecard — exempt from self-test)
+  ci.yml                ← self-test orchestrator
+examples/hello/         ← canonical test subject for ci.yml
+scripts/select-*.sh,
+scripts/test-*.sh        ← standalone mirrors of testable inline `run:` bash + their self-checks (rule 7)
+Makefile                ← setup, lint, test, secrets-scan-staged, hooks
 ```
 
 ## Build/test
 
 ```bash
-make setup              # verify gitleaks + bootstrap lefthook
-make lint               # actionlint on all workflows
+make setup               # verify gitleaks + bootstrap lefthook
+make lint                # actionlint on all workflows
+make test                # repo self-checks (e.g. shell file-selector logic) — no live-Actions run needed
 make secrets-scan-staged
 ```
 
