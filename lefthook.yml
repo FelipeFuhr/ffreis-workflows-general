@@ -9,6 +9,8 @@ pre-push:
   commands:
     lint:
       run: make lint
+    test:
+      run: make test
 
 # Self-test stubs for general-lefthook-complex.yml: this lib has no Go/Rust
 # heavy suite, so these trivial groups let ci.yml exercise

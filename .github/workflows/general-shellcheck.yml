@@ -75,9 +75,44 @@ jobs:
               files+=("$line")
             done <<< "$FILES_INPUT"
           else
+            # BEGIN select-shell-files
+            is_shell_script() {
+            	local f=$1
+            	case "$f" in
+            	*.sh) return 0 ;;
+            	esac
+            	local base=${f##*/}
+            	case "$base" in
+            	*.*) return 1 ;; # has a non-.sh extension (e.g. a template) -> out of scope
+            	esac
+            	local first_line tok interp t
+            	[[ -f "$f" ]] || return 1
+            	IFS= read -r -N 100 first_line <"$f" 2>/dev/null
+            	[[ -z "${first_line:-}" ]] && return 1
+            	first_line=${first_line%%$'\n'*}
+            	first_line=${first_line%$'\r'}
+            	[[ "$first_line" == '#!'* ]] || return 1
+            	read -ra tok <<<"${first_line#'#!'}"
+            	[[ "${#tok[@]}" -eq 0 ]] && return 1
+            	interp=${tok[0]##*/}
+            	if [[ "$interp" == env ]]; then
+            		interp=""
+            		for t in "${tok[@]:1}"; do
+            			[[ "$t" == -* ]] && continue
+            			interp=${t##*/}
+            			break
+            		done
+            	fi
+            	case "$interp" in
+            	sh | bash | dash | ksh) return 0 ;;
+            	*) return 1 ;;
+            	esac
+            }
+
             while IFS= read -r -d '' f; do
-              files+=("${f#./}")
-            done < <(find . -type f -name '*.sh' -print0)
+            	is_shell_script "$f" && files+=("${f#./}")
+            done < <(find . \( -type d \( -name .git -o -name node_modules -o -name vendor -o -name target \) \) -prune -o -type f -print0)
+            # END select-shell-files
           fi
 
           if [[ "${#files[@]}" -eq 0 ]]; then

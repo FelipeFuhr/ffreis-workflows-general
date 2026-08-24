@@ -13,4 +13,4 @@ Reusable, language-agnostic GitHub Actions workflows.
 - `general-codeql.yml`: enables CodeQL code scanning (uploads alerts to Code Scanning).
 - `general-config-validate.yml`: validates arbitrary YAML (yamllint, relaxed) and JSON (parse) config files so broken config can't land.
 - `general-gitleaks.yml`: scans for secrets with gitleaks (optional SARIF upload).
-- `general-shellcheck.yml`: lints shell scripts with shellcheck.
+- `general-shellcheck.yml`: lints shell scripts with shellcheck, including extension-less scripts detected by shebang.
