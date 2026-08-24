@@ -1,5 +1,14 @@
 # Changelog
 
+## [2.0.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.1...v2.0.2) (2026-08-24)
+
+
+### Bug Fixes
+
+* **lefthook:** skip remote sync when no hook will run ([#156](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/156)) ([724241a](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/724241ab2ac5e1eb774a5a8bf463fc1f74978bb1))
+* **markdownlint:** quote glob patterns so ** actually recurses ([#155](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/155)) ([78891c7](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/78891c7d8683972a0d93d681fce458bc89c1519b))
+* **shellcheck:** detect extension-less shell scripts by shebang ([#158](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/158)) ([f9e7c74](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/f9e7c74c533065f5334512360aca7b035c0f5861))
+
 ## [2.0.1](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.0...v2.0.1) (2026-08-16)
 
 
