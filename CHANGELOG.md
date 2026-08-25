@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.2...v2.0.3) (2026-08-25)
+
+
+### Bug Fixes
+
+* **checkov:** repin to a SHA that actually exists ([#160](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/160)) ([a06d681](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/a06d6814d8feed5092a9532297a05b52859cedff))
+* **grype:** surface grype's real stderr reason on empty-SARIF failure ([#159](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/159)) ([b91b5c7](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/b91b5c78c3c7c6fdf443d6517824feae79ccd2de))
+
 ## [2.0.2](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.1...v2.0.2) (2026-08-24)
 
 
