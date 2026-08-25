@@ -59,7 +59,7 @@ jobs:
 
       - name: Run Checkov
         id: checkov
-        uses: bridgecrewio/checkov-action@8c66e3fb7b4d68a8e3f969e4daa32d8c8f15f6a8 # v12.2780.0
+        uses: bridgecrewio/checkov-action@5ec4b94cd3e2b97551965608a7413098ee737108 # v12.2780.0
         with:
           directory: ${{ inputs.directory }}
           soft_fail: ${{ inputs.soft-fail }}
