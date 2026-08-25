@@ -155,11 +155,20 @@ jobs:
             if test -s grype.sarif; then
               break
             fi
-            # An empty SARIF almost always means a transient DB/network failure —
-            # grype writes a valid SARIF with empty results when it finds nothing,
-            # so a truly clean scan is never empty. Retry with backoff.
+            # grype writes a valid, non-empty SARIF file with an empty `results`
+            # array when it finds nothing — so an EMPTY FILE always means the
+            # catalog step itself never completed. That is often a transient
+            # DB/network blip, but not always: absolute `--exclude` paths broke
+            # this exact step deterministically on every attempt for two tagged
+            # releases (v1.7.0, v1.7.1 — fixed in #129), and produced this same
+            # symptom. Retry with backoff to absorb the transient case, but read
+            # grype's own stderr reason below rather than assuming "transient".
             if [ "$attempt" -ge "$max_attempts" ]; then
-              echo "::error::grype.sarif still empty after ${max_attempts} attempts (transient DB/network?)"
+              stderr_reason=""
+              if test -s grype.stderr.log; then
+                stderr_reason="$(tail -n 1 grype.stderr.log | tr -d '\r')"
+              fi
+              echo "::error::grype.sarif still empty after ${max_attempts} attempts — grype stderr (last line): ${stderr_reason:-<none captured>}"
               if test -s grype.stderr.log; then
                 echo "::group::grype stderr (tail)"
                 tail -n 200 grype.stderr.log || true
