@@ -1,5 +1,13 @@
 # Changelog
 
+## [2.0.4](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.3...v2.0.4) (2026-09-01)
+
+
+### Bug Fixes
+
+* **grype:** surface grype's real stderr reason on empty-SARIF failure ([#159](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/159)) ([b91b5c7](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/b91b5c78c3c7c6fdf443d6517824feae79ccd2de))
+* **lefthook:** add install-actionlint input, mirroring gitleaks ([#162](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/162)) ([eb79d12](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/eb79d12abe909dcdad46c3da78ecd593d1d96cbc))
+
 ## [2.0.3](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.2...v2.0.3) (2026-08-25)
 
 
