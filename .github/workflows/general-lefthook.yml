@@ -31,6 +31,14 @@ on:
         description: "gitleaks version to install (without leading v)"
         type: string
         default: "8.24.2"
+      install-actionlint:
+        description: "Install actionlint (needed by any repo whose lefthook config runs an actionlint/actionlint-workflows command, e.g. ffreis-platform-standards' lefthook/actionlint.yml)"
+        type: boolean
+        default: false
+      actionlint-version:
+        description: "actionlint version to install (without leading v)"
+        type: string
+        default: "1.7.7"
       lefthook-bootstrap-command:
         description: "Command to fetch/build lefthook binary (e.g. 'make lefthook-bootstrap')"
         type: string
@@ -116,6 +124,8 @@ jobs:
           INSTALL_GOVULNCHECK: ${{ inputs.install-govulncheck }}
           INSTALL_GITLEAKS: ${{ inputs.install-gitleaks }}
           GITLEAKS_VERSION: ${{ inputs.gitleaks-version }}
+          INSTALL_ACTIONLINT: ${{ inputs.install-actionlint }}
+          ACTIONLINT_VERSION: ${{ inputs.actionlint-version }}
         run: |
           set -euo pipefail
           mkdir -p "${HOME}/.local/bin"
@@ -134,6 +144,10 @@ jobs:
 
           if [[ "$INSTALL_GITLEAKS" == "true" ]]; then
             curl -sSfL "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | tar -xz -C "${HOME}/.local/bin" gitleaks
+          fi
+
+          if [[ "$INSTALL_ACTIONLINT" == "true" ]]; then
+            curl -sSfL "https://github.com/rhysd/actionlint/releases/download/v${ACTIONLINT_VERSION}/actionlint_${ACTIONLINT_VERSION}_linux_amd64.tar.gz" | tar -xz -C "${HOME}/.local/bin" actionlint
           fi
 
       - name: Stage files for staged hooks
