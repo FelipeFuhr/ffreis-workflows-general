@@ -3,6 +3,13 @@ name: General / OSSF Scorecard
 # SCAN-ONLY (+ optional SARIF upload). Does NOT publish and does NOT require id-token,
 # so any caller can use it without granting id-token:write. To publish to the OpenSSF
 # REST API (badge), call general-scorecard-publish.yml instead (it requires id-token).
+#
+# Runs the `scorecard` CLI binary directly rather than `ossf/scorecard-action`: that
+# action is a Docker container action (`runs: using: docker`), and the self-hosted k3s
+# runner pods have no usable Docker daemon, so every scan on the default `self-hosted`
+# runner failed with "Docker pull failed" (fleet-wide, pre-existing). The CLI is the
+# same analysis engine the action wraps for scan-only mode (no signing/publishing
+# involved here), so this produces equivalent SARIF with no container runtime anywhere.
 
 on:
   workflow_call:
@@ -19,6 +26,11 @@ on:
         required: false
         type: boolean
         default: false
+      scorecard-version:
+        description: scorecard CLI version to install (without leading v)
+        required: false
+        type: string
+        default: "5.5.0"
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
@@ -58,12 +70,110 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      - name: Install scorecard
+        env:
+          SCORECARD_VERSION: ${{ inputs.scorecard-version || '5.5.0' }}
+        run: |
+          set -euo pipefail
+          tmp="$(mktemp -d)"
+          trap 'rm -rf "$tmp"' EXIT
+          archive="scorecard_${SCORECARD_VERSION}_linux_amd64.tar.gz"
+          base="https://github.com/ossf/scorecard/releases/download/v${SCORECARD_VERSION}"
+          curl -fsSL "${base}/${archive}" -o "$tmp/${archive}"
+          curl -fsSL "${base}/scorecard_checksums.txt" -o "$tmp/checksums.txt"
+          (cd "$tmp" && grep " ${archive}\$" checksums.txt | sha256sum -c -)
+          tar -xzf "$tmp/${archive}" -C "$tmp" scorecard
+          sudo install -m 0755 "$tmp/scorecard" /usr/local/bin/scorecard
+          scorecard version
+
+      - name: Write scorecard policy
+        # SARIF output maps each check's score to a SARIF severity level via a policy
+        # file; without one, formatting fails outright for some checks (observed:
+        # "internal error: missing policy for check: Binary-Artifacts"). This is the
+        # same default policy ossf/scorecard-action bakes into its container image
+        # (policies/template.yml) for scan-only (non-publish) mode.
+        run: |
+          cat > "${GITHUB_WORKSPACE}/.scorecard-policy.yml" <<'EOF'
+          version: 1
+          policies:
+            Token-Permissions:
+                score: 10
+                mode: enforced
+            Branch-Protection:
+                score: 10
+                mode: enforced
+            Code-Review:
+                score: 10
+                mode: enforced
+            Dangerous-Workflow:
+                score: 10
+                mode: enforced
+            License:
+                score: 9
+                mode: enforced
+            Pinned-Dependencies:
+                score: 10
+                mode: enforced
+            Security-Policy:
+                score: 10
+                mode: enforced
+            SAST:
+                score: 10
+                mode: enforced
+            Contributors:
+                score: 10
+                mode: disabled
+            Packaging:
+                score: 10
+                mode: enforced
+            Binary-Artifacts:
+                score: 10
+                mode: enforced
+            Signed-Releases:
+                score: 10
+                mode: disabled
+            Dependency-Update-Tool:
+                score: 10
+                mode: enforced
+            Fuzzing:
+                score: 10
+                mode: enforced
+            CII-Best-Practices:
+                # passing score
+                score: 5
+                mode: enforced
+            Vulnerabilities:
+                score: 10
+                mode: enforced
+            CI-Tests:
+                score: 10
+                mode: enforced
+            Maintained:
+                score: 1
+                mode: enforced
+          EOF
+
       - name: Run OSSF Scorecard
-        uses: ossf/scorecard-action@4eaacf0543bb3f2c246792bd56e8cdeffafb205a # v2.4.3
-        with:
-          results_format: sarif
-          results_file: scorecard.sarif
-          publish_results: false
+        env:
+          GITHUB_AUTH_TOKEN: ${{ github.token }}
+          SCORECARD_REPO: ${{ github.repository }}
+          # SARIF is a feature-flagged format in the scorecard library, gated behind
+          # this env var rather than exposed as a plain CLI flag (ossf/scorecard-action
+          # sets the same var internally before calling the same library function).
+          ENABLE_SARIF: "1"
+        run: |
+          set -euo pipefail
+          scorecard --repo="${SCORECARD_REPO}" --format=sarif --show-details \
+            --policy="${GITHUB_WORKSPACE}/.scorecard-policy.yml" \
+            > scorecard.sarif
+          # scorecard has logged-but-non-fatal formatting failures (exit 0 with an
+          # empty/truncated file) — verify the output is non-empty, valid JSON before
+          # letting a broken SARIF file reach the upload step.
+          if [[ ! -s scorecard.sarif ]] || ! python3 -c 'import json,sys; json.load(open("scorecard.sarif"))'; then
+            echo "ERROR: scorecard produced no valid SARIF output." >&2
+            cat scorecard.sarif >&2 || true
+            exit 1
+          fi
 
       - name: Upload SARIF
         if: inputs.upload-sarif
