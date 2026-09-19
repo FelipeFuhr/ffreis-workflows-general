@@ -17,6 +17,7 @@ validate: lint ## Alias for lint
 
 test: ## Run repo self-checks (no live-Actions run required)
 	bash scripts/test-select-shell-files.sh
+	bash scripts/test-scorecard-token-gate.sh
 
 secrets-scan-staged: ## Scan staged files for secrets
 	@command -v gitleaks >/dev/null 2>&1 || { \
