@@ -1,5 +1,12 @@
 # Changelog
 
+## [2.0.5](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.4...v2.0.5) (2026-09-19)
+
+
+### Bug Fixes
+
+* **scorecard:** accept a PAT so private repos can actually be scanned ([#165](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/165)) ([17f98be](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/17f98be6be7b3eb8dce7faebfc253e00a6434360))
+
 ## [2.0.4](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.3...v2.0.4) (2026-09-13)
 
 
