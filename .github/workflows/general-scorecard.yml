@@ -48,6 +48,20 @@ on:
         type: string
         default: '["self-hosted","local"]'
 
+    secrets:
+      SCORECARD_TOKEN:
+        description: >-
+          Optional read-only PAT used as scorecard's GITHUB_AUTH_TOKEN.
+          REQUIRED FOR PRIVATE REPOSITORIES. scorecard reads commit history
+          through the GraphQL API, and the default GITHUB_TOKEN cannot do that
+          on a private repo -- the scan aborts with
+          "ListCommits: githubv4.Query: Resource not accessible by integration"
+          and produces no SARIF. A fine-grained token with Contents:R,
+          Metadata:R, PRs:R and Actions:R is sufficient; the fleet's
+          FLEET_READ_TOKEN already carries exactly that.
+          Public repositories need nothing -- github.token suffices.
+        required: false
+
 permissions: {}
 
 jobs:
@@ -155,21 +169,53 @@ jobs:
 
       - name: Run OSSF Scorecard
         env:
-          GITHUB_AUTH_TOKEN: ${{ github.token }}
+          GITHUB_AUTH_TOKEN: ${{ secrets.SCORECARD_TOKEN || github.token }}
           SCORECARD_REPO: ${{ github.repository }}
+          REPO_VISIBILITY: ${{ github.event.repository.visibility }}
+          HAVE_SCORECARD_TOKEN: ${{ secrets.SCORECARD_TOKEN != '' }}
           # SARIF is a feature-flagged format in the scorecard library, gated behind
           # this env var rather than exposed as a plain CLI flag (ossf/scorecard-action
           # sets the same var internally before calling the same library function).
           ENABLE_SARIF: "1"
         run: |
           set -euo pipefail
+
+          # Keep stderr: scorecard reports a fatal scan abort there while still
+          # exiting 0, so the message is the only way to tell WHY the SARIF is
+          # empty. Without this the private-repo token failure below is
+          # indistinguishable from a formatting bug.
+          set +e
           scorecard --repo="${SCORECARD_REPO}" --format=sarif --show-details \
             --policy="${GITHUB_WORKSPACE}/.scorecard-policy.yml" \
-            > scorecard.sarif
+            > scorecard.sarif 2> scorecard.stderr
+          rc=$?
+          set -e
+          cat scorecard.stderr >&2 || true
+
           # scorecard has logged-but-non-fatal formatting failures (exit 0 with an
           # empty/truncated file) — verify the output is non-empty, valid JSON before
           # letting a broken SARIF file reach the upload step.
-          if [[ ! -s scorecard.sarif ]] || ! python3 -c 'import json,sys; json.load(open("scorecard.sarif"))'; then
+          if [[ "$rc" -ne 0 ]] || [[ ! -s scorecard.sarif ]] \
+             || ! python3 -c 'import json,sys; json.load(open("scorecard.sarif"))'; then
+            # The overwhelmingly common cause on this fleet: a private repo with no
+            # SCORECARD_TOKEN. scorecard reads commit history over GraphQL, which the
+            # default GITHUB_TOKEN cannot do on a private repo. It surfaces as
+            # "Resource not accessible by integration", which reads like a workflow
+            # permissions bug and has repeatedly been diagnosed as one — it is not;
+            # no `permissions:` block can grant it.
+            if grep -q "Resource not accessible by integration" scorecard.stderr 2>/dev/null \
+               && [[ "${REPO_VISIBILITY}" == "private" ]] \
+               && [[ "${HAVE_SCORECARD_TOKEN}" != "true" ]]; then
+              echo "::error title=Scorecard needs a token on private repos::\
+          ${SCORECARD_REPO} is private and no SCORECARD_TOKEN was passed. scorecard \
+          reads commit history through the GraphQL API and the default GITHUB_TOKEN \
+          cannot do that on a private repository. Pass a read-only PAT, e.g. \
+          pass FLEET_READ_TOKEN through as SCORECARD_TOKEN in the caller's \
+          'secrets:' block -- it already carries Contents:R, Metadata:R, \
+          PRs:R and Actions:R. Alternatively set the SCORECARD_ENABLED repo \
+          variable to false. This is NOT a workflow 'permissions:' problem."
+              exit 1
+            fi
             echo "ERROR: scorecard produced no valid SARIF output." >&2
             cat scorecard.sarif >&2 || true
             exit 1

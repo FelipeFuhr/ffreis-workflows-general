@@ -267,6 +267,24 @@ jobs:
       # self-hosted on public repos by default). Must stay hosted.
       runner: '["ubuntu-latest"]'
 
+  # `make test` runs the repo's own self-checks (scripts/test-*.sh). It was
+  # wired only into the pre-push lefthook hook, so CI never ran it and a green
+  # PR said nothing about whether those checks passed -- the CI lefthook job
+  # exercises the complex/release tiers, which are echo stubs, not pre-push.
+  self-checks:
+    permissions:
+      actions: read
+      contents: read
+    uses: ./.github/workflows/general-run-commands.yml
+    with:
+      working-directory: "."
+      timeout-minutes: 10
+      commands: |-
+        set -euo pipefail
+        make test
+      # Public repo — must stay hosted, same reason as run-commands below.
+      runner: '["ubuntu-latest"]'
+
   run-commands:
     permissions:
       actions: read
