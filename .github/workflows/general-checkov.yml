@@ -23,6 +23,11 @@ on:
         required: false
         type: boolean
         default: false
+      checkov-version:
+        description: "Checkov version to install (pinned for reproducible scans)"
+        required: false
+        type: string
+        default: "3.3.19"
       timeout-minutes:
         description: "Maximum number of minutes before the job is cancelled"
         required: false
@@ -57,16 +62,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
 
+      # bridgecrewio/checkov-action is a Docker container action (`runs: using: docker`)
+      # and this workflow defaults to the self-hosted pool, whose k3s runner pods have
+      # no container runtime — the image pull happens during job setup, before any step
+      # runs, so no step-level `if:` can guard it. Install the CLI instead: same engine,
+      # same SARIF, no container runtime. `--user` (not sudo) because the runner user is
+      # non-root and /usr/local is not writable there — same reason as Semgrep (#127).
+      - name: Install Checkov
+        env:
+          CHECKOV_VERSION: ${{ inputs.checkov-version }}
+        run: 'pip install --user --only-binary :all: "checkov==${CHECKOV_VERSION}"'
+
       - name: Run Checkov
         id: checkov
-        uses: bridgecrewio/checkov-action@5ec4b94cd3e2b97551965608a7413098ee737108 # v12.2780.0
-        with:
-          directory: ${{ inputs.directory }}
-          soft_fail: ${{ inputs.soft-fail }}
-          skip_check: ${{ inputs.skip-checks }}
-          output_format: cli,sarif
-          output_file_path: console,checkov.sarif
-          quiet: false
+        env:
+          DIRECTORY: ${{ inputs.directory }}
+          SKIP_CHECKS: ${{ inputs.skip-checks }}
+          SOFT_FAIL: ${{ inputs.soft-fail }}
+        run: |
+          set -euo pipefail
+          export PATH="$HOME/.local/bin:$PATH"
+          args=(
+            --directory "$DIRECTORY"
+            --output cli --output sarif
+            --output-file-path "console,checkov.sarif"
+          )
+          if [ -n "$SKIP_CHECKS" ]; then
+            args+=(--skip-check "$SKIP_CHECKS")
+          fi
+          if [ "$SOFT_FAIL" = "true" ]; then
+            args+=(--soft-fail)
+          fi
+          checkov "${args[@]}"
         continue-on-error: ${{ inputs.soft-fail }}
 
       - name: Upload Checkov SARIF
