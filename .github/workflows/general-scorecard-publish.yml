@@ -5,6 +5,31 @@ name: General / OSSF Scorecard Publish
 # grant id-token:write. THIS workflow's job declares id-token:write, so every caller of
 # THIS workflow must grant it (publishers already do). Publishing only makes sense on the
 # default branch, so the job is gated off for pull_request events.
+#
+# TWO STRUCTURAL CONSTRAINTS, both enforced below -- read before changing the gate:
+#
+# 1. GITHUB-HOSTED ONLY. Unlike general-scorecard.yml (which was rewritten to run the
+#    scorecard CLI binary directly), publishing CANNOT drop the container action: the
+#    OIDC token exchange and the signed POST to api.scorecard.dev live in the action's
+#    own Go entrypoint, not in the `scorecard` CLI. `ossf/scorecard-action` is a Docker
+#    container action (`runs: using: docker`, image ghcr.io/ossf/scorecard-action), and
+#    the self-hosted k3s runner pods have no container runtime at all -- the pull fails
+#    with "failed to connect to the docker API at unix:///var/run/docker.sock ... no
+#    such file or directory", three retries, then "Docker pull failed with exit code 1".
+#    That happens during image setup, BEFORE the first step runs, so no `run:` preflight
+#    can catch it and no `if:` on a step can avoid it. The only fix is to not schedule
+#    the job on a runner without a container runtime -- hence the hosted default.
+#
+# 2. PUBLIC REPOS ONLY. scorecard-action hard-disables publishing on private repos:
+#    `o.PublishResults = inputVal && !privateRepo` (options/options.go). On a private
+#    repo this workflow would pull the image, run a full scan, and publish nothing --
+#    burning CI for a guaranteed no-op. So it skips cleanly on private, the same way
+#    general-dependency-review.yml skips rather than failing for lack of an entitlement.
+#
+# Cost note: because (2) restricts this to public repositories, the GitHub-hosted default
+# in (1) is FREE -- GitHub-hosted minutes are only billable on private repos. This adds
+# no spend. Callers needing scorecard on a private repo want general-scorecard.yml
+# (scan-only), which runs the CLI and works on the self-hosted pool.
 
 on:
   workflow_call:
@@ -21,17 +46,22 @@ on:
         default: 15
       runner:
         description: |
-          JSON-encoded runner label(s). Default: self-hosted [self-hosted, local]. Pass '["ubuntu-latest"]' for GitHub-hosted.
+          JSON-encoded runner label(s). Default: GitHub-hosted ["ubuntu-latest"].
+          Do NOT point this at the self-hosted pool: this workflow runs a Docker
+          container action and those runners have no container runtime, so the job
+          dies on the image pull before any step executes. See the header comment.
         required: false
         type: string
-        default: '["self-hosted","local"]'
+        default: '["ubuntu-latest"]'
 
 permissions: {}
 
 jobs:
   scorecard-publish:
     # Publishing requires the default branch + OIDC; never runs on PRs.
-    if: ${{ github.event_name != 'pull_request' }}
+    # Private repos are skipped: scorecard-action disables publishing on them outright
+    # (see header note 2), so running would scan and publish nothing.
+    if: ${{ github.event_name != 'pull_request' && github.event.repository.visibility == 'public' }}
     name: OSSF Scorecard (publish)
     runs-on: ${{ fromJson(inputs.runner) }}
     timeout-minutes: ${{ inputs.timeout-minutes }}
