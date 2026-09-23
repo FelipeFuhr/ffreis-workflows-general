@@ -382,3 +382,23 @@ jobs:
       runner: '["ubuntu-latest"]'
     secrets:
       DISPATCH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+  checkov:
+    # Exercises general-checkov.yml against examples/hello/main.tf. It had no
+    # self-test job at all, which is why a Docker-container action survived in it
+    # long after the self-hosted pool lost its container runtime. This job runs
+    # hosted (public repo, see below), so it proves the CLI path installs, scans
+    # and writes SARIF — it cannot prove the self-hosted path, which now holds
+    # only because the workflow no longer uses a container action or sudo.
+    permissions:
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/general-checkov.yml
+    with:
+      directory: examples/hello
+      soft-fail: true
+      upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'

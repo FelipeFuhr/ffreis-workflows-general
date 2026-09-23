@@ -20,10 +20,14 @@ on:
         default: false
       runner:
         description: |
-          JSON-encoded runner label(s). Default: self-hosted [self-hosted, local]. Pass '["ubuntu-latest"]' for GitHub-hosted.
+          JSON-encoded runner label(s). Default: GitHub-hosted ["ubuntu-latest"].
+          This job is gated to PUBLIC repos (see the job `if:`) and the self-hosted
+          pool is org-scoped, so it cannot serve public repos: the previous
+          '["self-hosted","local"]' default could never run. Kept as an input for
+          symmetry with the rest of the library.
         required: false
         type: string
-        default: '["self-hosted","local"]'
+        default: '["ubuntu-latest"]'
     secrets:
       SONAR_TOKEN:
         description: "SonarCloud token"
@@ -58,8 +62,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: SonarCloud Scan
-        uses: SonarSource/sonarcloud-github-action@383f7e52eae3ab0510c3cb0e7d9d150bbaeab838 # v3.1.0
+      - name: SonarQube Cloud Scan
+        # Was SonarSource/sonarcloud-github-action, which upstream ARCHIVED in favour
+        # of sonarqube-scan-action. Not a routine Renovate bump (AGENTS.md rule 3):
+        # the old action is a Docker container action (`runs: using: docker`), so it
+        # could never start on the self-hosted pool, which has no container runtime.
+        # The replacement is a node24 action and needs none. SONAR_HOST_URL is only
+        # required for self-hosted SonarQube Server, not for SonarQube Cloud.
+        uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
         with:
           projectBaseDir: ${{ inputs.working-directory }}
         env:
