@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.1.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.5...v2.1.0) (2026-09-24)
+
+
+### Features
+
+* **lefthook:** accept goprivate and GIT_AUTH_TOKEN ([#170](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/170)) ([e0500b0](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/e0500b0eebd26509227bdffc306332f3d3e9143d))
+
+
+### Bug Fixes
+
+* **workflows:** drop container actions that cannot run on self-hosted ([#168](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/168)) ([db514bb](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/db514bb775b5e67527c2935578583e26d6af0621))
+
 ## [2.0.5](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.4...v2.0.5) (2026-09-19)
 
 
