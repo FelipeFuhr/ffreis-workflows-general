@@ -77,12 +77,25 @@ on:
         required: false
         type: boolean
         default: false
+      goprivate:
+        description: >
+          Comma-separated GOPRIVATE glob pattern(s) for private cross-repo Go
+          dependencies (e.g. 'github.com/FelipeFuhr/*'). Empty (default) leaves
+          GOPRIVATE/git auth untouched — zero-impact for existing callers.
+        required: false
+        type: string
+        default: ""
       runner:
         description: |
           JSON-encoded runner label(s). Default: self-hosted [self-hosted, local]. Pass '["ubuntu-latest"]' for GitHub-hosted.
         required: false
         type: string
         default: '["self-hosted","local"]'
+
+    secrets:
+      GIT_AUTH_TOKEN:
+        description: "Token for private cross-repo Go module access (used with goprivate)"
+        required: false
 
 permissions: {}
 
@@ -107,6 +120,30 @@ jobs:
 
       - name: Checkout
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Configure private Go module access
+        # Hooks like `lint` and `sec` shell out to golangci-lint and
+        # govulncheck, which resolve the module graph. Without this, a repo with
+        # a private cross-repo dependency fails here with
+        # `fatal: could not read Username for 'https://github.com'` -- and the
+        # failure is reported against the hook, not against module auth, so it
+        # reads like a lint error. ffreis-workflows-go's go-* workflows have
+        # carried this step since PR #106; the lefthook workflows did not, which
+        # is what ffreis-platform-configctl hit when it started consuming
+        # ffreis-platform-ctlcore.
+        if: ${{ inputs.goprivate != '' }}
+        env:
+          GOPRIVATE_INPUT: ${{ inputs.goprivate }}
+          GIT_AUTH_TOKEN: ${{ secrets.GIT_AUTH_TOKEN }}
+        run: |
+          set -euo pipefail
+          {
+            echo "GOPRIVATE=${GOPRIVATE_INPUT}"
+            echo "GONOSUMCHECK=1"
+          } >> "$GITHUB_ENV"
+          if [ -n "$GIT_AUTH_TOKEN" ]; then
+            git config --global url."https://x-access-token:${GIT_AUTH_TOKEN}@github.com/".insteadOf "https://github.com/"
+          fi
 
       - name: Setup Go
         if: inputs.install-golangci-lint || inputs.install-govulncheck
