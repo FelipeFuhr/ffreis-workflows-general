@@ -1,0 +1,134 @@
+name: General / Renovate
+
+# Self-hosted Renovate runner.
+#
+# WHY THIS EXISTS: the fleet already had Renovate configured everywhere — 476
+# `renovate.json` files, a shared preset, per-repo custom managers — and the
+# Mend-hosted GitHub App installed org-wide since 2026-07-15. It had produced
+# ZERO pull requests and ZERO Dependency Dashboard issues across both owners,
+# ever. Installing the App on GitHub does not by itself schedule runs on the
+# hosted service, so every one of those configs was decoration.
+#
+# That silence had a real cost: `ffreis-home-infra`'s `gha_runner_image_base`
+# custom manager was supposed to open a PR when a new actions-runner release
+# landed. 2.336.0 (2026-07-20) and 2.337.0 (2026-08-26) both went by untracked,
+# and on 2026-09-24 GitHub deprecated the pinned 2.335.1 server-side — every
+# runner pod entered CrashLoopBackOff and the whole fleet's CI queued
+# indefinitely. The role's own comment had predicted exactly that, calling the
+# Renovate manager "load-bearing rather than a nicety".
+#
+# Running Renovate ourselves removes the dependency on a dashboard nobody
+# checks. Callers keep their existing `renovate.json` unchanged — this only
+# supplies the thing that was missing: something that actually executes.
+
+on:
+  workflow_call:
+    inputs:
+      repositories:
+        description: |
+          Space- or comma-separated list of `owner/repo` for Renovate to
+          process. Deliberately REQUIRED and has no default: `autodiscover`
+          across this fleet's ~476 configured repos would open hundreds of PRs
+          on its first run. Widen this list one step at a time.
+        required: true
+        type: string
+      dry-run:
+        description: |
+          Run without creating branches, PRs or issues — Renovate logs what it
+          WOULD do. Use this for the first run against any new repository.
+        required: false
+        type: boolean
+        default: false
+      log-level:
+        description: "Renovate LOG_LEVEL (debug is what you want when a manager silently matches nothing)."
+        required: false
+        type: string
+        default: "info"
+      pr-hourly-limit:
+        description: "Max PRs Renovate may open per hour. 0 = unlimited (do not)."
+        required: false
+        type: number
+        default: 4
+      pr-concurrent-limit:
+        description: "Max open Renovate PRs at once per repo."
+        required: false
+        type: number
+        default: 5
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled."
+        required: false
+        type: number
+        default: 45
+      runner:
+        description: |
+          JSON-encoded runner label(s). Default: self-hosted [self-hosted, local]. Pass '["ubuntu-latest"]' for GitHub-hosted.
+        required: false
+        type: string
+        default: '["self-hosted","local"]'
+    secrets:
+      RENOVATE_TOKEN:
+        description: |
+          GitHub PAT Renovate authenticates with. Needs contents:write +
+          pull-requests:write + issues:write (the Dependency Dashboard is an
+          issue) on every repo in `repositories`. A fine-grained PAT must list
+          each of them explicitly — Renovate reports "not found", not
+          "forbidden", when a repo is outside the token's scope, so an
+          unexpectedly empty run is usually this.
+        required: true
+
+jobs:
+  renovate:
+    runs-on: ${{ fromJson(inputs.runner) }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner (Audit all outbound calls)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      # Fail loudly rather than letting Renovate start and process nothing —
+      # an empty/typo'd list produces a green run with no output, which is the
+      # exact failure mode this workflow exists to end.
+      - name: Require a non-empty repository list
+        env:
+          REPOSITORIES: ${{ inputs.repositories }}
+        run: |
+          set -euo pipefail
+          normalised="$(printf '%s' "$REPOSITORIES" | tr ',' ' ' | xargs || true)"
+          if [ -z "$normalised" ]; then
+            echo "::error::inputs.repositories is empty — nothing would be processed" >&2
+            exit 1
+          fi
+          for r in $normalised; do
+            case "$r" in
+              */*) : ;;
+              *) echo "::error::'$r' is not in owner/repo form" >&2; exit 1 ;;
+            esac
+          done
+          echo "will process: $normalised"
+
+      - name: Renovate
+        uses: renovatebot/github-action@9fea9f0fbf80401026d11d03911d62b1f70fef1f # v46.3.3
+        env:
+          LOG_LEVEL: ${{ inputs.log-level }}
+          RENOVATE_PLATFORM: github
+          RENOVATE_REPOSITORIES: ${{ inputs.repositories }}
+          RENOVATE_DRY_RUN: ${{ inputs.dry-run && 'full' || 'null' }}
+          RENOVATE_PR_HOURLY_LIMIT: ${{ inputs.pr-hourly-limit }}
+          RENOVATE_PR_CONCURRENT_LIMIT: ${{ inputs.pr-concurrent-limit }}
+          # The dashboard issue is the audit trail: it lists what Renovate saw
+          # and what it deliberately skipped. Its ABSENCE is how you know
+          # Renovate never ran at all — which is precisely how the 2026-09-24
+          # outage stayed invisible for two months.
+          RENOVATE_DEPENDENCY_DASHBOARD: "true"
+          # Never open an onboarding PR: every target already ships a
+          # hand-written renovate.json that must be respected as-is.
+          RENOVATE_ONBOARDING: "false"
+          RENOVATE_REQUIRE_CONFIG: "required"
+        with:
+          token: ${{ secrets.RENOVATE_TOKEN }}
