@@ -197,16 +197,23 @@ jobs:
           # letting a broken SARIF file reach the upload step.
           if [[ "$rc" -ne 0 ]] || [[ ! -s scorecard.sarif ]] \
              || ! python3 -c 'import json,sys; json.load(open("scorecard.sarif"))'; then
-            # The overwhelmingly common cause on this fleet: a private repo with no
-            # SCORECARD_TOKEN. scorecard reads commit history over GraphQL, which the
-            # default GITHUB_TOKEN cannot do on a private repo. It surfaces as
-            # "Resource not accessible by integration", which reads like a workflow
-            # permissions bug and has repeatedly been diagnosed as one — it is not;
-            # no `permissions:` block can grant it.
-            if grep -q "Resource not accessible by integration" scorecard.stderr 2>/dev/null \
-               && [[ "${REPO_VISIBILITY}" == "private" ]] \
-               && [[ "${HAVE_SCORECARD_TOKEN}" != "true" ]]; then
-              echo "::error title=Scorecard needs a token on private repos::\
+            # The overwhelmingly common cause on this fleet: a private repo whose
+            # credential cannot read commit history over GraphQL. scorecard's
+            # ListCommits goes through the GraphQL API, and neither the default
+            # GITHUB_TOKEN nor a fine-grained PAT that does not cover this repo can
+            # do that on a private repository. It reads like a workflow permissions
+            # bug and has repeatedly been diagnosed as one — it is not; no
+            # `permissions:` block can grant it.
+            #
+            # TWO error strings, because the wording follows the credential type:
+            # "by integration" for the Actions GITHUB_TOKEN, "by personal access
+            # token" for a PAT. Matching only the first is why this guard stayed
+            # silent on ffreis-evidence-core and handed back a raw githubv4 error.
+            if grep -qE "Resource not accessible by (integration|personal access token)" \
+                 scorecard.stderr 2>/dev/null \
+               && [[ "${REPO_VISIBILITY}" == "private" ]]; then
+              if [[ "${HAVE_SCORECARD_TOKEN}" != "true" ]]; then
+                echo "::error title=Scorecard needs a token on private repos::\
           ${SCORECARD_REPO} is private and no SCORECARD_TOKEN was passed. scorecard \
           reads commit history through the GraphQL API and the default GITHUB_TOKEN \
           cannot do that on a private repository. Pass a read-only PAT, e.g. \
@@ -214,6 +221,20 @@ jobs:
           'secrets:' block -- it already carries Contents:R, Metadata:R, \
           PRs:R and Actions:R. Alternatively set the SCORECARD_ENABLED repo \
           variable to false. This is NOT a workflow 'permissions:' problem."
+              else
+                echo "::error title=The SCORECARD_TOKEN cannot read this repo::\
+          ${SCORECARD_REPO} is private and a SCORECARD_TOKEN WAS passed, but GitHub \
+          refused it for scorecard's GraphQL ListCommits query. The token is being \
+          sent and recognised -- it just does not cover this repository. \
+          Fine-grained PATs scoped to an explicit repository list do NOT \
+          auto-include repositories created after the token was issued, and there \
+          is no API or CLI operation to add one to an existing token: it is \
+          GitHub Settings > Developer settings > Fine-grained tokens > edit > \
+          Repository access, by the token's owner. Add ${SCORECARD_REPO} there (or \
+          switch the token to 'All repositories'), or set the SCORECARD_ENABLED repo \
+          variable to false. This is NOT a workflow 'permissions:' problem and not \
+          a bug in this workflow."
+              fi
               exit 1
             fi
             echo "ERROR: scorecard produced no valid SARIF output." >&2
