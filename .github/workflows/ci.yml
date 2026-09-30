@@ -404,6 +404,10 @@ jobs:
       runner: '["ubuntu-latest"]'
 
   ci-budget:
+    # Draft-gated like every other job here (enforced by general-workflows-policy's
+    # ci_draft_policy check). The sibling jobs inherit their gate from the reusable
+    # workflow they call; this one is a plain job, so it carries its own.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
     # Exercises .github/actions/ci-budget — the fleet's first composite action,
     # so there is no reusable-workflow self-test to lean on. Two halves:
     # the unit tests (fixture-driven, they prove the cgroup detection logic
