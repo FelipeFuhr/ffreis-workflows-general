@@ -70,6 +70,38 @@ tuning `jobs` fixes that — the honest answers are a larger tier or a smaller
 per-worker footprint, and the plan says so out loud instead of planning a
 number that cannot work.
 
+## Asserting the fit (`max-utilisation-pct`)
+
+Reporting the peak tells you what happened once. The assertion is what keeps a
+job fitting its tier *over time*:
+
+```yaml
+- name: Report
+  if: always()
+  uses: FelipeFuhr/ffreis-workflows-general/.github/actions/ci-budget@<sha>
+  with:
+    mode: report
+    baseline-oom-kills: ${{ steps.oom-before.outputs.oom-kills }}
+    fail-on-oom: 'true'
+    max-utilisation-pct: '85'
+```
+
+The failure this prevents is not the OOM. It is the quarter *before* the OOM,
+when one dependency bump takes a job from 50% to 95% of its pod and nothing
+says anything — so the eventual kill arrives with no history, surfaces as a
+dead runner agent, and gets filed as flaky infrastructure.
+
+| observed | result |
+| --- | --- |
+| 1554 MiB of 3072 (51%) | passes, reports headroom |
+| 2900 MiB of 3072 (94%) | `::error::` naming the ceiling; fails with `fail-on-over-utilisation` |
+| peak counter absent | `::notice::` saying the fit was **NOT** checked — never a silent pass |
+
+That last row is the important one. `memory.peak` needs cgroup v2 on Linux
+5.19+; a GitHub-hosted runner is a VM with no cgroup cap and exposes nothing to
+measure against. An assertion that cannot run must say so, or it is worth less
+than no assertion at all.
+
 ## What it deliberately does not do
 
 **It decides no policy.** It reports `workers` and `fits`; whether a poor fit is
