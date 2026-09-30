@@ -50,6 +50,21 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
    `scripts/select-shell-files.sh` / `scripts/test-select-shell-files.sh` for the
    reference instance (`general-shellcheck.yml`'s file selector).
 
+8. **Capability that must run inside someone else's job is a composite action in
+   `.github/actions/<name>/`, not a reusable workflow.** This is the escape hatch
+   from rule 7's constraint: a reusable workflow's `run:` only sees the caller's
+   checkout, but an *action* is downloaded with its own files, and
+   `${{ github.action_path }}` points at them. So an action can ship a real
+   script with real unit tests instead of a pasted-and-drift-tested copy. A
+   reusable workflow also cannot be invoked as a step, which rules it out
+   whenever the capability has to run *between* a caller's own steps.
+   `ci-budget` is the first instance and the reason the directory exists.
+   Rule 1's self-test obligation applies unchanged: `ci.yml`'s `ci-budget` job
+   runs the unit tests **and** invokes the action, because nothing else proves
+   `action.yml` wires up. Consumers pin a full SHA exactly as for workflows —
+   `uses: FelipeFuhr/ffreis-workflows-general/.github/actions/<name>@<sha>` —
+   and because this repo is public that needs no token.
+
 ## Structure
 
 ```
@@ -57,6 +72,9 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
   general-*.yml         ← reusable library (what consumers call)
   devops-*.yml          ← repo-maintenance (stale, labeling, scorecard — exempt from self-test)
   ci.yml                ← self-test orchestrator
+.github/actions/
+  ci-budget/            ← composite action (rule 8): action.yml + ci_budget.py
+                          + test_ci_budget.py + README.md
 examples/hello/         ← canonical test subject for ci.yml
 scripts/select-*.sh,
 scripts/test-*.sh        ← standalone mirrors of testable inline `run:` bash + their self-checks (rule 7)

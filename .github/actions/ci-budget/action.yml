@@ -1,0 +1,118 @@
+name: CI budget
+description: >-
+  Derive a job's real memory/CPU budget from its cgroup (not the node), plan a
+  worker count that fits it, and afterwards report observed peak and OOM kills
+  so an overrun is attributable instead of looking like a flaky runner.
+
+inputs:
+  mode:
+    description: '"plan" before the work, "report" after it.'
+    required: false
+    default: plan
+  per-worker-mib:
+    description: >-
+      Measured peak resident memory of ONE unit of parallel work, in MiB.
+      For cargo-mutants on an aws-sdk-heavy crate this was measured at ~2500;
+      for a pure-logic crate it is a few hundred. Required for mode=plan.
+    required: false
+    default: '2500'
+  reserve-mib:
+    description: >-
+      Held back for everything that is not a worker: the runner agent, the
+      shell, the test harness. On a self-hosted runner the agent shares the pod
+      cgroup with the build, so this reserve is what keeps the OOM killer away
+      from the agent — which is the difference between an attributable failure
+      and a run that reads as flaky infrastructure.
+    required: false
+    default: '768'
+  max-workers:
+    description: 'Hard ceiling regardless of how much budget is available.'
+    required: false
+    default: '4'
+  cpu-divisor:
+    description: >-
+      Cores are divided by this before bounding the worker count, because each
+      worker typically spawns its own parallel compiler.
+    required: false
+    default: '2'
+  baseline-oom-kills:
+    description: 'mode=report: the oom_kill count captured before the work ran.'
+    required: false
+    default: '0'
+  fail-on-oom:
+    description: 'mode=report: fail the step when the OOM counter rose.'
+    required: false
+    default: 'false'
+
+outputs:
+  workers:
+    description: 'Worker count that fits the measured budget (never 0).'
+    value: ${{ steps.budget.outputs.workers }}
+  fits:
+    description: '"false" when even one worker does not fit — caller decides what that means.'
+    value: ${{ steps.budget.outputs.fits }}
+  shortfall-mib:
+    description: 'MiB by which one worker overshoots the budget, when fits is false.'
+    value: ${{ steps.budget.outputs.shortfall-mib }}
+  memory-mib:
+    description: 'The budget actually used.'
+    value: ${{ steps.budget.outputs.memory-mib }}
+  memory-source:
+    description: 'cgroup-v2 | cgroup-v1 | meminfo | unknown.'
+    value: ${{ steps.budget.outputs.memory-source }}
+  usable-mib:
+    description: 'Budget minus reserve.'
+    value: ${{ steps.budget.outputs.usable-mib }}
+  cpus:
+    description: 'Effective CPU count, honouring a CFS quota when set.'
+    value: ${{ steps.budget.outputs.cpus }}
+  reason:
+    description: 'Human-readable explanation of how the number was reached.'
+    value: ${{ steps.budget.outputs.reason }}
+  peak-mib:
+    description: 'mode=report: observed peak, when the kernel exposes it.'
+    value: ${{ steps.budget.outputs.peak-mib }}
+  oom-kills:
+    description: 'mode=report: cgroup oom_kill counter.'
+    value: ${{ steps.budget.outputs.oom-kills }}
+
+runs:
+  using: composite
+  steps:
+    # Every input is routed through `env:` rather than interpolated into the
+    # `run:` body — the repo's shell-injection rule, enforced by Semgrep.
+    - id: budget
+      shell: bash
+      env:
+        CI_BUDGET_MODE: ${{ inputs.mode }}
+        CI_BUDGET_PER_WORKER_MIB: ${{ inputs.per-worker-mib }}
+        CI_BUDGET_RESERVE_MIB: ${{ inputs.reserve-mib }}
+        CI_BUDGET_MAX_WORKERS: ${{ inputs.max-workers }}
+        CI_BUDGET_CPU_DIVISOR: ${{ inputs.cpu-divisor }}
+        CI_BUDGET_BASELINE_OOM: ${{ inputs.baseline-oom-kills }}
+        CI_BUDGET_FAIL_ON_OOM: ${{ inputs.fail-on-oom }}
+        CI_BUDGET_ACTION_PATH: ${{ github.action_path }}
+      run: |
+        set -euo pipefail
+        script="${CI_BUDGET_ACTION_PATH}/ci_budget.py"
+
+        case "${CI_BUDGET_MODE}" in
+          plan)
+            python3 "$script" plan \
+              --per-worker-mib "${CI_BUDGET_PER_WORKER_MIB}" \
+              --reserve-mib "${CI_BUDGET_RESERVE_MIB}" \
+              --max-workers "${CI_BUDGET_MAX_WORKERS}" \
+              --cpu-divisor "${CI_BUDGET_CPU_DIVISOR}"
+            ;;
+          report)
+            args=(report --baseline-oom-kills "${CI_BUDGET_BASELINE_OOM}")
+            if [ "${CI_BUDGET_FAIL_ON_OOM}" = "true" ]; then
+              args+=(--fail-on-oom)
+            fi
+            python3 "$script" "${args[@]}"
+            ;;
+          *)
+            echo "::error title=ci-budget::unknown mode '${CI_BUDGET_MODE}' (expected 'plan' or 'report')" >&2
+            exit 2
+            ;;
+        esac
