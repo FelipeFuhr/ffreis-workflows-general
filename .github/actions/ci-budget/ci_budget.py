@@ -333,26 +333,75 @@ def cmd_plan(args: argparse.Namespace) -> int:
     return 0
 
 
+def utilisation_pct(peak_mib: int | None, budget_mib: int | None) -> int | None:
+    """Peak as a percentage of the budget, or None when either is unknown.
+
+    This is the number that makes "this work fits this tier" a CONTINUOUSLY
+    CHECKED property rather than a one-off measurement someone wrote in a
+    comment. A crate's dependency closure grows; today's comfortable 50% is
+    next quarter's 95% after one SDK bump, and nothing notices until a job is
+    OOM-killed and the kill is misread as flaky infrastructure.
+    """
+    if peak_mib is None or not budget_mib:
+        return None
+    return round(peak_mib * 100 / budget_mib)
+
+
 def cmd_report(args: argparse.Namespace) -> int:
     peak = read_peak(args.sysfs_root)
     kills = read_oom_kills(args.sysfs_root)
     limits = detect_limits(args.sysfs_root, args.proc_root)
+    used = utilisation_pct(peak, limits.memory_mib)
+    headroom = (limits.memory_mib - peak) if (peak is not None and limits.memory_mib) else None
 
     peak_txt = f"{peak} MiB" if peak is not None else "unavailable"
-    print(f"ci-budget: peak {peak_txt}, oom_kill count {kills if kills is not None else 'unavailable'}")
+    used_txt = f"{used}%" if used is not None else "unavailable"
+    print(
+        f"ci-budget: peak {peak_txt} of {limits.memory_mib} MiB ({used_txt}), "
+        f"oom_kill count {kills if kills is not None else 'unavailable'}"
+    )
 
     _emit(
         {
             "peak-mib": peak if peak is not None else "",
+            "utilisation-pct": used if used is not None else "",
+            "headroom-mib": headroom if headroom is not None else "",
             "oom-kills": kills if kills is not None else "",
         },
         "GITHUB_OUTPUT",
     )
     _summary(
-        f"\n**Observed peak:** {peak_txt}"
-        f" (budget {limits.memory_mib} MiB via {limits.memory_source});"
-        f" OOM kills: {kills if kills is not None else 'unavailable'}\n"
+        f"\n**Observed peak:** {peak_txt} of {limits.memory_mib} MiB "
+        f"(**{used_txt}** used, {headroom if headroom is not None else '?'} MiB headroom, "
+        f"via {limits.memory_source}); OOM kills: "
+        f"{kills if kills is not None else 'unavailable'}\n"
     )
+
+    # The fit assertion. Deliberately BEFORE the OOM check below, because a job
+    # that is quietly at 95% has not failed yet and is the one worth hearing
+    # about — by the time it OOMs the signal is far more expensive to read.
+    if args.max_utilisation_pct > 0:
+        if used is None:
+            # Never let an unchecked invariant look checked. The kernel exposes
+            # memory.peak only on cgroup v2 >= 5.19; on a hosted runner (a VM
+            # with no cgroup cap) there is nothing to measure against.
+            print(
+                "::notice title=CI budget not asserted::"
+                f"a maximum utilisation of {args.max_utilisation_pct}% was requested, but this "
+                "runner exposes no peak-memory counter (memory.peak / "
+                "max_usage_in_bytes), so the fit was NOT checked on this run."
+            )
+        elif used > args.max_utilisation_pct:
+            msg = (
+                f"this job peaked at {peak} MiB of {limits.memory_mib} MiB ({used}%), over the "
+                f"{args.max_utilisation_pct}% ceiling. It has not been OOM-killed yet, but it no "
+                "longer fits this tier with margin: the next dependency bump is what breaks it, "
+                "and that failure surfaces as a dead runner agent rather than as a resource error. "
+                "Shrink the per-unit footprint, cut the parallelism, or move to a larger tier."
+            )
+            print(f"::error title=Job no longer fits its tier::{msg}")
+            if args.fail_on_over_utilisation:
+                return 1
 
     if kills and kills > args.baseline_oom_kills:
         new = kills - args.baseline_oom_kills
@@ -384,6 +433,9 @@ def main(argv: list[str] | None = None) -> int:
     r = sub.add_parser("report", help="report observed peak and OOM kills after a run")
     r.add_argument("--baseline-oom-kills", type=int, default=0)
     r.add_argument("--fail-on-oom", action="store_true")
+    r.add_argument("--max-utilisation-pct", type=int, default=0,
+                   help="assert peak stays under this %% of the budget; 0 disables the assertion")
+    r.add_argument("--fail-on-over-utilisation", action="store_true")
     r.set_defaults(func=cmd_report)
 
     args = parser.parse_args(argv)

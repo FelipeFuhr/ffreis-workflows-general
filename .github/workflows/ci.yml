@@ -437,6 +437,12 @@ jobs:
         uses: ./.github/actions/ci-budget
         with:
           mode: report
+          # Exercises the assertion path. A hosted runner is a VM with no
+          # cgroup cap and no memory.peak, so this specific run takes the
+          # "cannot measure, say so" branch — which is the branch most likely
+          # to regress into a silent pass, and therefore the one worth having
+          # a live self-test walk through.
+          max-utilisation-pct: '85'
 
       - name: Assert the action produced a usable plan
         env:
