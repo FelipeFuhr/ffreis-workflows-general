@@ -402,3 +402,54 @@ jobs:
       # has no visibility into personal-account repos; GitHub also blocks
       # self-hosted on public repos by default). Must stay hosted.
       runner: '["ubuntu-latest"]'
+
+  ci-budget:
+    # Exercises .github/actions/ci-budget — the fleet's first composite action,
+    # so there is no reusable-workflow self-test to lean on. Two halves:
+    # the unit tests (fixture-driven, they prove the cgroup detection logic
+    # without needing a container), and a real invocation of the action itself,
+    # which is the only thing that proves action.yml wires up at all.
+    permissions:
+      contents: read
+    # This repo is public — self-hosted runners can't serve it (org-scoped pool
+    # has no visibility into personal-account repos; GitHub also blocks
+    # self-hosted on public repos by default). Must stay hosted.
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        working-directory: .github/actions/ci-budget
+        run: python3 -m unittest test_ci_budget -v
+
+      - name: Plan (real invocation)
+        id: plan
+        uses: ./.github/actions/ci-budget
+        with:
+          per-worker-mib: '512'
+
+      - name: Report (real invocation)
+        id: report
+        uses: ./.github/actions/ci-budget
+        with:
+          mode: report
+
+      - name: Assert the action produced a usable plan
+        env:
+          WORKERS: ${{ steps.plan.outputs.workers }}
+          SOURCE: ${{ steps.plan.outputs.memory-source }}
+          REASON: ${{ steps.plan.outputs.reason }}
+        run: |
+          set -euo pipefail
+          echo "workers=${WORKERS} source=${SOURCE}"
+          echo "reason=${REASON}"
+          # A hosted runner must always be measurable one way or another; an
+          # empty or zero worker count means the action failed to produce a
+          # plan, which is the one outcome its callers cannot cope with.
+          case "${WORKERS}" in
+            ''|0) echo "::error::ci-budget produced no usable worker count"; exit 1 ;;
+          esac
+          if [ "${SOURCE}" = "unknown" ]; then
+            echo "::error::ci-budget could not read any memory ceiling on a hosted runner"
+            exit 1
+          fi
