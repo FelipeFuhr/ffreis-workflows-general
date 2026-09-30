@@ -1,5 +1,17 @@
 # Changelog
 
+## [2.2.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.1.0...v2.2.0) (2026-09-30)
+
+
+### Features
+
+* **ci-budget:** size CI work from the cgroup, not the node ([#174](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/174)) ([67ab77c](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/67ab77cd9e05184bb7e860e83481a4e339a63a0c))
+
+
+### Bug Fixes
+
+* **scorecard:** match the PAT error wording and the token-present case ([#172](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/172)) ([3f9c528](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/3f9c528dfcb3f782a3a13486b37675ee2f5311ef))
+
 ## [2.1.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.5...v2.1.0) (2026-09-24)
 
 
