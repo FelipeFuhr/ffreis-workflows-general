@@ -22,7 +22,7 @@ inputs:
     description: "SonarCloud organization slug. Omitted automatically for local scans — SonarQube Community Edition rejects -Dsonar.organization outright."
     required: true
   sonar-token:
-    description: "SONAR_TOKEN. Composite actions have no implicit secrets context — the caller must pass ${{ secrets.SONAR_TOKEN }} explicitly."
+    description: "SONAR_TOKEN. Composite actions have no implicit secrets context — the caller must pass the SONAR_TOKEN secret's value explicitly via this input."
     required: true
   extra-sonar-args:
     description: "Language-specific sonar.* args (coverage report paths, sources/tests, exclusions, language version, etc). Must NOT include projectKey/organization/host — those are managed by this action."
