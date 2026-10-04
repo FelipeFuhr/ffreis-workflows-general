@@ -457,3 +457,46 @@ jobs:
             echo "::error::ci-budget could not read any memory ceiling on a hosted runner"
             exit 1
           fi
+
+  sonar-scan-fallback:
+    # Draft-gated like every other job here (enforced by general-workflows-policy's
+    # ci_draft_policy check). The sibling jobs inherit their gate from the reusable
+    # workflow they call; this one is a plain job, so it carries its own.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    # Exercises .github/actions/sonar-scan-with-fallback. Unit tests cover the
+    # pure routing/outcome logic; the dry-run invocation is the only thing
+    # that proves action.yml's input/output wiring actually works. A real
+    # scan needs a SONAR_TOKEN and the self-hosted cluster, neither available
+    # (or appropriate) in this public repo's own self-test, hence dry-run.
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unit tests
+        working-directory: .github/actions/sonar-scan-with-fallback
+        run: python3 -m unittest discover -p 'test_*.py' -v
+
+      - name: Dry run (real invocation, no network/cluster calls)
+        id: scan
+        uses: ./.github/actions/sonar-scan-with-fallback
+        with:
+          project-key: examples-hello
+          organization: felipefuhr
+          sonar-token: unused-in-dry-run
+          dry-run: 'true'
+
+      - name: Assert the action's wiring reports this (public) repo's routing
+        env:
+          HOST_USED: ${{ steps.scan.outputs.host-used }}
+          USED_FALLBACK: ${{ steps.scan.outputs.used-fallback }}
+        run: |
+          set -euo pipefail
+          echo "host-used=${HOST_USED} used-fallback=${USED_FALLBACK}"
+          # This repo is public, so dry-run must resolve to sonarcloud/false —
+          # anything else means an output never made it through the step chain.
+          if [ "${HOST_USED}" != "sonarcloud" ] || [ "${USED_FALLBACK}" != "false" ]; then
+            echo "::error::sonar-scan-with-fallback dry-run produced unexpected outputs on a public repo"
+            exit 1
+          fi

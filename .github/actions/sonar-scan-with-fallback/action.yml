@@ -1,0 +1,153 @@
+name: Sonar scan with local fallback
+description: >-
+  Run a SonarCloud scan, routing private repos straight to the fleet's
+  self-hosted SonarQube (ffreis-home-infra's scale-to-zero `sonarqube` role)
+  since SonarCloud's free tier 403s on private repos regardless of token
+  validity. For public repos, when the SonarCloud attempt itself fails —
+  org-wide LOC-quota exhaustion, a 403, a transient outage — falls back to
+  the same local server and retries, instead of just failing the check.
+  Optionally reports fallback usage (rate-limited to once/day fleet-wide) via
+  the fleet's monitor Lambda, since a fallback that succeeds otherwise looks
+  exactly like a normal green SonarCloud run.
+
+inputs:
+  project-base-dir:
+    description: "Directory containing the code/sonar-project.properties to scan."
+    required: false
+    default: "."
+  project-key:
+    description: "SonarCloud/SonarQube project key (resolved by the caller, e.g. from sonar-project.properties or repo name — unchanged from today's per-language resolution)."
+    required: true
+  organization:
+    description: "SonarCloud organization slug. Omitted automatically for local scans — SonarQube Community Edition rejects -Dsonar.organization outright."
+    required: true
+  sonar-token:
+    description: "SONAR_TOKEN. Composite actions have no implicit secrets context — the caller must pass the SONAR_TOKEN secret's value explicitly via this input."
+    required: true
+  extra-sonar-args:
+    description: "Language-specific sonar.* args (coverage report paths, sources/tests, exclusions, language version, etc). Must NOT include projectKey/organization/host — those are managed by this action."
+    required: false
+    default: ""
+  notify-role-to-assume:
+    description: "IAM role ARN this job can assume to invoke the fleet's monitor Lambda and report fallback usage. Empty (default) disables notification entirely — no AWS call is made."
+    required: false
+    default: ""
+  notify-lambda-name:
+    required: false
+    default: "ffreis-monitor-evaluator-prod"
+  notify-aws-region:
+    required: false
+    default: "us-east-1"
+  dry-run:
+    description: "Skip every network/cluster call; only resolve routing and report what WOULD happen. For this repo's own self-test (ci.yml) against examples/hello — never set true for a real scan."
+    required: false
+    default: "false"
+
+outputs:
+  host-used:
+    description: "'sonarcloud', 'local', or 'none' (scan failed everywhere) — which server actually produced the scan."
+    value: ${{ steps.finalize.outputs.host-used }}
+  used-fallback:
+    description: >-
+      'true' only when SonarCloud was attempted, failed, and the local server
+      rescued it. 'false' for a private repo's normal straight-to-local
+      routing — that's by-design, not a fallback, and isn't notify-worthy.
+    value: ${{ steps.finalize.outputs.used-fallback }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve scan target
+      id: target
+      shell: bash
+      env:
+        VISIBILITY: ${{ github.event.repository.visibility }}
+        ACTION_PATH: ${{ github.action_path }}
+      run: python3 "${ACTION_PATH}/resolve_target.py" --visibility "${VISIBILITY}" >> "$GITHUB_OUTPUT"
+
+    - name: SonarCloud scan
+      id: scan-primary
+      if: steps.target.outputs.is_local != 'true' && inputs.dry-run != 'true'
+      continue-on-error: true
+      uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_HOST_URL: ${{ steps.target.outputs.host_url }}
+      with:
+        projectBaseDir: ${{ inputs.project-base-dir }}
+        args: >
+          -Dsonar.projectKey=${{ inputs.project-key }}
+          -Dsonar.organization=${{ inputs.organization }}
+          ${{ inputs.extra-sonar-args }}
+
+    - name: Scale up local SonarQube
+      id: scale-local
+      if: >-
+        inputs.dry-run != 'true' &&
+        (steps.target.outputs.is_local == 'true' || steps.scan-primary.outcome == 'failure')
+      shell: bash
+      run: bash "${{ github.action_path }}/scale_local_sonarqube.sh"
+
+    - name: SonarQube scan (local)
+      id: scan-local
+      if: steps.scale-local.outcome == 'success'
+      continue-on-error: true
+      uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+      env:
+        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        SONAR_HOST_URL: http://sonarqube.ci.svc.cluster.local:9000
+      with:
+        projectBaseDir: ${{ inputs.project-base-dir }}
+        args: >
+          -Dsonar.projectKey=${{ inputs.project-key }}
+          ${{ inputs.extra-sonar-args }}
+
+    - name: Finalize outcome
+      id: finalize
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        IS_LOCAL: ${{ steps.target.outputs.is_local }}
+        PRIMARY_OUTCOME: ${{ steps.scan-primary.outcome }}
+        LOCAL_SCAN_OUTCOME: ${{ steps.scan-local.outcome }}
+        DRY_RUN: ${{ inputs.dry-run }}
+      run: |
+        set -euo pipefail
+        python3 "${ACTION_PATH}/finalize.py" \
+          --is-local "${IS_LOCAL}" \
+          --primary-outcome "${PRIMARY_OUTCOME}" \
+          --local-scan-outcome "${LOCAL_SCAN_OUTCOME}" \
+          --dry-run "${DRY_RUN}" >> "$GITHUB_OUTPUT"
+
+    - name: Configure AWS credentials (fallback notification)
+      id: notify-aws
+      if: steps.finalize.outputs.used-fallback == 'true' && inputs.notify-role-to-assume != '' && inputs.dry-run != 'true'
+      continue-on-error: true
+      uses: aws-actions/configure-aws-credentials@ec61189d14ec14c8efccab744f656cffd0e33f37 # v6.1.0
+      with:
+        role-to-assume: ${{ inputs.notify-role-to-assume }}
+        aws-region: ${{ inputs.notify-aws-region }}
+
+    - name: Notify fallback usage
+      # Best-effort on purpose: a notification failure (role not wired yet on
+      # a given repo, Lambda down, dedup already fired today) must never fail
+      # the CI job that successfully scanned via the fallback.
+      if: steps.notify-aws.outcome == 'success'
+      continue-on-error: true
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        LAMBDA_NAME: ${{ inputs.notify-lambda-name }}
+        REPO: ${{ github.repository }}
+        RUN_URL: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        HOST_USED: ${{ steps.finalize.outputs.host-used }}
+      run: |
+        set -euo pipefail
+        payload="$(python3 "${ACTION_PATH}/notify_payload.py" \
+          --repo "${REPO}" --run-url "${RUN_URL}" --host-used "${HOST_USED}")"
+        aws lambda invoke \
+          --function-name "${LAMBDA_NAME}" \
+          --payload "${payload}" \
+          --cli-binary-format raw-in-base64-out \
+          /tmp/sonar-fallback-notify-response.json
+        cat /tmp/sonar-fallback-notify-response.json
