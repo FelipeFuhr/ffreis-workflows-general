@@ -34,7 +34,7 @@ inputs:
     default: ""
   notify-lambda-name:
     required: false
-    default: "ffreis-monitor-evaluator"
+    default: "ffreis-monitor-evaluator-prod"
   notify-aws-region:
     required: false
     default: "us-east-1"

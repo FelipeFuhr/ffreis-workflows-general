@@ -60,7 +60,7 @@ analysis history, so this action deliberately stays out of that decision.
 ## Notification
 
 If `notify-role-to-assume` is set and a fallback actually happened, this
-action assumes that role and invokes the fleet's `ffreis-monitor-evaluator`
+action assumes that role and invokes the fleet's `ffreis-monitor-evaluator-prod`
 Lambda (`mode: "ci_notify"`), which rate-limits to **one email fleet-wide per
 day** via its existing DynamoDB dedup table — so ten repos hitting the same
 LOC-quota outage in one day produce one email, not ten. Leave the input empty
