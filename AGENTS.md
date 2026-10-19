@@ -163,7 +163,11 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
                           + test_ci_budget.py + README.md
 examples/hello/         ← canonical test subject for ci.yml
 scripts/select-*.sh,
-scripts/test-*.sh        ← standalone mirrors of testable inline `run:` bash + their self-checks (rule 7)
+scripts/test-*.sh        ← mirrors of testable inline `run:` bash + their
+                           self-checks (rule 7), plus checks that extract a
+                           step or read the workflow graph from the shipped
+                           YAML (test-grype-scan-verdict.sh,
+                           test-ci-caller-contract.sh)
 Makefile                ← setup, lint, test, secrets-scan-staged, hooks
 ```
 
@@ -172,9 +176,22 @@ Makefile                ← setup, lint, test, secrets-scan-staged, hooks
 ```bash
 make setup               # verify gitleaks + bootstrap lefthook
 make lint                # actionlint on all workflows
-make test                # repo self-checks (e.g. shell file-selector logic) — no live-Actions run needed
+make test                # repo self-checks — no live-Actions run needed
 make secrets-scan-staged
 ```
+
+`make test` is reached in CI by `ci.yml`'s `self-checks` job, so it is a real
+gate and not just a pre-push convenience. It currently covers the shell-file
+selector, the scorecard token gate, both grype verdict steps, the `ci.yml`
+caller contract, and the two composite actions' unit tests.
+
+**The caller contract is the one failure mode CI cannot report.** An undeclared
+input, a required input not passed, a caller `permissions` block that is not a
+superset of the callee's, or a missing required secret all produce
+`startup_failure`: zero jobs, no log, and `gh pr checks` shows it as perpetual
+PENDING rather than red. `scripts/test-ci-caller-contract.sh` checks all four
+before the push; use `quality-kit/scripts/check-ci.sh`, never `gh pr checks`
+raw, to read what did run.
 
 ## Cross-repo role
 
