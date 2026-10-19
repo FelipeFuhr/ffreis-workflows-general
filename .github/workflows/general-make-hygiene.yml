@@ -1,0 +1,125 @@
+name: General / make hygiene (inline-comment whitespace)
+
+# Fails a repo whose Makefile assigns a value with trailing whitespace because
+# of an inline `# comment`. GNU make strips the comment but NOT the whitespace
+# that preceded the `#`, so
+#
+#     PLATFORM_STANDARDS_SHA := 3c787edb...8db7  # v1.2.1
+#
+# assigns a 42-character value — the 40-hex SHA plus two spaces. Interpolated
+# into a URL, every target that uses it dies with
+#
+#     curl: (3) URL rejected: Malformed input to a URL function
+#
+# which is why `make hook-scripts` / `lefthook-bootstrap` / `lefthook-install` /
+# `install-act` / `ci-local` had never worked in 146 of the 147 repos carrying
+# it. `?=` does not help; the operator is irrelevant. The defect is invisible in
+# a diff and to the eye — it can only be found by measuring, which is what the
+# auditor does.
+#
+# The auditor is NOT inlined here. It is fetched from its canonical home,
+# ffreis-platform-standards — the fleet's public, pinned channel for shared
+# scripts — the same way general-ci-local-coverage.yml fetches the drift check
+# from ffreis-platform-ci-local. `standards-ref` pins it per caller.
+#
+# Local counterpart: the `make-inline-comments` pre-commit command in
+# ffreis-platform-standards' lefthook/base.yml, which runs the same script out
+# of the lefthook remote clone the consumer already pinned.
+
+on:
+  workflow_call:
+    inputs:
+      working-directory:
+        description: "Repo root to audit"
+        required: false
+        type: string
+        default: "."
+      standards-ref:
+        description: "Git ref of ffreis-platform-standards to fetch the auditor from"
+        required: false
+        type: string
+        default: "main"
+      fatal-only:
+        description: "Only fail on FATAL occurrences (the variable is interpolated next to a '/', so the whitespace corrupts a URL or path). WARN findings are still printed."
+        required: false
+        type: boolean
+        default: false
+      enforce:
+        description: "Fail the job on a violation (true) or only report it (false, for staged adoption)"
+        required: false
+        type: boolean
+        default: true
+      timeout-minutes:
+        description: "Maximum number of minutes before the job is cancelled"
+        required: false
+        type: number
+        default: 10
+      run_on_draft:
+        description: "Run even on draft PRs (default: skip on draft to save CI minutes)"
+        required: false
+        type: boolean
+        default: false
+      runner:
+        description: |
+          JSON-encoded runner label(s). Default: self-hosted [self-hosted, local]. Pass '["ubuntu-latest"]' for GitHub-hosted.
+        required: false
+        type: string
+        default: '["self-hosted","local"]'
+
+permissions: {}
+
+jobs:
+  make-hygiene:
+    if: ${{ inputs.run_on_draft || vars.CI_RUN_ON_DRAFT == 'true' || github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: make inline-comment hygiene
+    runs-on: ${{ fromJson(inputs.runner) }}
+    timeout-minutes: ${{ inputs.timeout-minutes }}
+    permissions:
+      contents: read
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+
+      - name: Audit make assignments for comment-induced trailing whitespace
+        env:
+          WORKING_DIRECTORY: ${{ inputs.working-directory }}
+          STANDARDS_REF: ${{ inputs.standards-ref }}
+          FATAL_ONLY: ${{ inputs.fatal-only }}
+          ENFORCE: ${{ inputs.enforce }}
+        run: |
+          set -euo pipefail
+          base="https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/${STANDARDS_REF}/scripts"
+          # A failed fetch must fail the job, never skip the gate: a check that
+          # silently passes when its own tooling is missing is worse than no
+          # check. `curl -f` + `set -e` is what makes that so.
+          curl -fsSL "$base/audit-make-inline-comments.sh" -o /tmp/audit-make-inline-comments.sh
+          chmod +x /tmp/audit-make-inline-comments.sh
+          root="${WORKING_DIRECTORY%/}"
+          root="${root:-.}"
+          flags=""
+          if [ "$FATAL_ONLY" = "true" ]; then
+            flags="--fatal-only"
+          fi
+          # The auditor exits 1 on a violation and 2 on a setup error. A setup
+          # error fails the job even in report-only mode — it means the audit
+          # never actually ran.
+          status=0
+          # shellcheck disable=SC2086  # $flags is an intentional word-split flag list
+          bash /tmp/audit-make-inline-comments.sh $flags "$root" || status=$?
+          if [ "$status" -eq 0 ]; then
+            exit 0
+          fi
+          if [ "$status" -ne 1 ]; then
+            echo "::error title=make hygiene::auditor failed to run (exit $status)"
+            exit "$status"
+          fi
+          echo "::error title=make hygiene::a make assignment's inline '# comment' leaves trailing whitespace INSIDE the value. Move the comment to its own line ABOVE the assignment — '?=' does not help. Repair with: audit-make-inline-comments.sh --fix --measure <repo>"
+          if [ "$ENFORCE" = "true" ]; then
+            exit 1
+          fi
+          echo "report-only (enforce=false): not failing the job"
