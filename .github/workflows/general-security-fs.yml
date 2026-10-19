@@ -8,9 +8,15 @@ name: General / Security Filesystem Bundle
 # captures its own exit code; the job fails at the end only when fail-on-vuln is
 # set and at least one scanner found something at/above its severity threshold.
 #
-# OSV-Scanner is intentionally NOT folded in: general-osv-scanner.yml is a
-# reusable-workflow `uses:` of google/osv-scanner-action (Renovate-managed) and
-# cannot run as a step. It stays a standalone job.
+# OSV-Scanner is intentionally NOT folded in: general-osv-scanner.yml carries its
+# own `concurrency:` group and its own draft gate, neither of which survives being
+# flattened into a step here. It stays a standalone job.
+#
+# (It no longer `uses:` google/osv-scanner-action — that reusable tag-pinned
+# actions/download-artifact internally, which every repo with
+# sha_pinning_required rejects at "Set up job" with zero steps. It now downloads
+# the osv-scanner binary directly. Callers still pinned to a pre-fix ref see that
+# startup failure and need a pin bump, not a workflow change.)
 
 on:
   workflow_call:
@@ -128,60 +134,118 @@ jobs:
         shell: bash
         run: |
           set -uo pipefail
-          attempt=0
-          max_attempts=3
-          exit_code=0
-          while true; do
-            attempt=$((attempt + 1))
-            # GHA runner invokes `shell: bash` with -e, so a non-zero grype exit
-            # (code 2 = matches found) would kill the shell before exit_code=$? runs.
-            # Use && / || to suppress -e while still capturing the exit code.
-            # scan-fix(grype:self-scan): exclude grype's own binary — installed to
-            # /usr/local/bin/grype (GHA) or /bin/grype (host/act); without this,
-            # CVEs in grype's own Go stdlib/docker deps surface as project findings.
-            # grype >= 0.114.0 rejects absolute exclusion paths ("invalid exclusion
-            # pattern(s) ... must start with one of: './', '*/', or '**/'") — exclusions
-            # are matched relative to the scan root, so a '**/' prefix is required and
-            # still matches these binary paths at any depth under the scanned tree.
-            grype "dir:${SCAN_PATH}" \
-              --exclude '**/bin/grype' \
-              --exclude '**/usr/local/bin/grype' \
-              --exclude '**/usr/bin/grype' \
-              --fail-on "$SEVERITY" \
-              -o sarif \
-              > grype.sarif 2> grype.stderr.log \
-              && exit_code=0 \
-              || exit_code=$?
-            if test -s grype.sarif; then
-              break
+          # grype's exit-code/output contract, probed against the pinned v0.114.0
+          # binary and locked by scripts/test-grype-scan-verdict.sh:
+          #
+          #   exit 0,     SARIF written -> scan ran; nothing at/above --fail-on
+          #   exit 2,     SARIF written -> scan ran; findings at/above --fail-on
+          #   exit 1,     SARIF EMPTY   -> grype never completed (bad config, a
+          #                                path it cannot resolve, DB failure);
+          #                                stderr carries an `ERROR ...` line
+          #   exit >= 128, SARIF EMPTY  -> grype was killed by signal exit-128
+          #
+          # A repo with no package manifests is the FIRST case, not an error:
+          # grype writes a valid 358-byte SARIF with an empty `results` array and
+          # exits 0. "Nothing to scan" is therefore a pass that must be stated,
+          # and nothing here is retryable — every empty-SARIF cause above is
+          # deterministic or fatal. The previous 3-attempt backoff loop could not
+          # fix any of them; it only kept a dying job on the runner longer, which
+          # is what turned a diagnosable failure into "received a shutdown
+          # signal". The kill case is why the loop looked plausible: the OOM
+          # killer takes grype (the largest RSS in the pod cgroup) while bash
+          # survives, so the step saw an empty file and no error text at all.
+          #
+          # scan-fix(grype:self-scan): exclude grype's own binary — installed to
+          # /usr/local/bin/grype (GHA) or /bin/grype (host/act); without this,
+          # CVEs in grype's own Go stdlib/docker deps surface as project findings.
+          # grype >= 0.114.0 rejects absolute exclusion paths ("invalid exclusion
+          # pattern(s) ... must start with one of: './', '*/', or '**/'") — exclusions
+          # are matched relative to the scan root, so a '**/' prefix is required and
+          # still matches these binary paths at any depth under the scanned tree.
+          #
+          # The CycloneDX output answers "did this gate check anything?". A
+          # zero-finding SARIF is only trustworthy next to the number of packages
+          # cataloged, so both are logged. One scan, two serializers — grype
+          # builds the SBOM either way; this only asks it to also write it out.
+          sbom_json="$(mktemp -d)/grype-sbom.json"
+          # GHA invokes `shell: bash` with -e, so a non-zero grype exit would kill
+          # the shell before the code could be captured; && / || keeps it alive.
+          grype "dir:${SCAN_PATH}" \
+            --exclude '**/bin/grype' \
+            --exclude '**/usr/local/bin/grype' \
+            --exclude '**/usr/bin/grype' \
+            --fail-on "$SEVERITY" \
+            -o "sarif=grype.sarif" \
+            -o "cyclonedx-json=${sbom_json}" \
+            2> grype.stderr.log \
+            && exit_code=0 \
+            || exit_code=$?
+
+          dump_stderr() {
+            if test -s grype.stderr.log; then
+              echo "::group::grype stderr (tail)"
+              tail -n 200 grype.stderr.log || true
+              echo "::endgroup::"
             fi
-            # grype writes a valid, non-empty SARIF file with an empty `results`
-            # array when it finds nothing — so an EMPTY FILE always means the
-            # catalog step itself never completed. That is often a transient
-            # DB/network blip, but not always: absolute `--exclude` paths broke
-            # this exact step deterministically on every attempt for two tagged
-            # releases (v1.7.0, v1.7.1 — fixed in #129), and produced this same
-            # symptom. Retry with backoff to absorb the transient case, but read
-            # grype's own stderr reason below rather than assuming "transient".
-            if [ "$attempt" -ge "$max_attempts" ]; then
-              stderr_reason=""
+          }
+
+          if ! test -s grype.sarif; then
+            # No report at all: the scan did NOT run, so this can never pass.
+            if [[ "$exit_code" -ge 128 ]]; then
+              echo "::error::grype was killed by signal $((exit_code - 128)) before writing a report — the scan did not run. On a memory-capped runner this is almost always the OOM killer choosing grype; give this job a larger runner class rather than re-running it."
+            else
+              reason=""
               if test -s grype.stderr.log; then
-                stderr_reason="$(tail -n 1 grype.stderr.log | tr -d '\r')"
+                reason="$(grep -m1 'ERROR' grype.stderr.log | tr -d '\r')"
               fi
-              echo "::error::grype.sarif still empty after ${max_attempts} attempts — grype stderr (last line): ${stderr_reason:-<none captured>}"
-              if test -s grype.stderr.log; then
-                echo "::group::grype stderr (tail)"
-                tail -n 200 grype.stderr.log || true
-                echo "::endgroup::"
-              fi
-              exit 1
+              echo "::error::grype failed to run (exit ${exit_code}) and wrote no report: ${reason:-<no error text captured>}"
             fi
-            echo "::warning::grype produced an empty SARIF (attempt ${attempt}/${max_attempts}); retrying after backoff"
-            sleep "$((attempt * 10))"
-          done
-          echo "exit-code=${exit_code}" >> "$GITHUB_OUTPUT"
-          if [ "$exit_code" -ne 0 ]; then
-            echo "::warning::Grype found vulnerabilities (exit=${exit_code}) at/above ${SEVERITY}."
+            dump_stderr
+            exit 1
+          fi
+
+          census="$(SARIF_PATH=grype.sarif SBOM_PATH="$sbom_json" python3 - <<'PY'
+          import json
+          import os
+          import pathlib
+
+          sarif = json.loads(pathlib.Path(os.environ["SARIF_PATH"]).read_text())
+          findings = sum(len(run.get("results") or []) for run in sarif.get("runs") or [])
+          sbom = pathlib.Path(os.environ["SBOM_PATH"])
+          packages = 0
+          if sbom.is_file() and sbom.stat().st_size:
+              packages = len(json.loads(sbom.read_text()).get("components") or [])
+          print(findings, packages)
+          PY
+          )" || {
+            echo "::error::grype wrote a report that is not valid JSON — treating as a failed scan, not as zero findings."
+            dump_stderr
+            exit 1
+          }
+          findings="${census%% *}"
+          packages="${census##* }"
+
+          {
+            echo "exit-code=${exit_code}"
+            echo "findings=${findings}"
+            echo "packages=${packages}"
+          } >> "$GITHUB_OUTPUT"
+
+          # 0 = clean, 2 = --fail-on threshold met. Anything else alongside a
+          # written report is a grype contract change we must not paper over.
+          if [[ "$exit_code" -ne 0 && "$exit_code" -ne 2 ]]; then
+            echo "::error::grype wrote a report but exited ${exit_code}, which is neither 'clean' (0) nor 'findings' (2)."
+            dump_stderr
+            exit 1
+          fi
+
+          if [[ "$packages" -eq 0 ]]; then
+            echo "Grype: no package manifests found under '${SCAN_PATH}' — 0 packages cataloged, so there is nothing to match against. The scan itself completed (exit ${exit_code}); this gate passes."
+          else
+            echo "Grype: scan completed — ${packages} package(s) cataloged, ${findings} finding(s) at/above ${SEVERITY}."
+          fi
+          if [[ "$exit_code" -eq 2 ]]; then
+            echo "::warning::Grype found vulnerabilities at/above ${SEVERITY} (${findings} finding(s))."
           fi
 
       # --- gitleaks ----------------------------------------------------------
@@ -251,11 +315,17 @@ jobs:
           SEVERITY: ${{ inputs.severity }}
           TRIVY_OUTCOME: ${{ steps.trivy.outcome }}
           GRYPE_EXIT: ${{ steps.grype.outputs.exit-code }}
+          GRYPE_FINDINGS: ${{ steps.grype.outputs.findings }}
+          GRYPE_PACKAGES: ${{ steps.grype.outputs.packages }}
           GITLEAKS_OUTCOME: ${{ steps.gitleaks.outcome }}
         shell: bash
         run: |
           set -euo pipefail
           fail=0
+          # Say what ran before saying what it found: a clean verdict over zero
+          # cataloged packages is a different statement from a clean verdict over
+          # a real dependency tree, and only one of them is reassuring.
+          echo "Grype: ${GRYPE_PACKAGES:-?} package(s) cataloged, ${GRYPE_FINDINGS:-?} finding(s) at/above ${SEVERITY} (grype exit ${GRYPE_EXIT:-?})."
           # gitleaks: any non-success outcome means secrets found (or a real error) -> always fail.
           if [[ "$GITLEAKS_OUTCOME" != "success" ]]; then
             echo "::error::gitleaks reported findings or errored."
@@ -263,6 +333,10 @@ jobs:
           fi
           if [[ "$FAIL_ON_VULN" == "true" ]]; then
             [[ "$TRIVY_OUTCOME" != "success" ]] && { echo "::error::Trivy found vulnerabilities at/above HIGH."; fail=1; }
-            [[ "${GRYPE_EXIT:-0}" -ne 0 ]] && { echo "::error::Grype found vulnerabilities at/above ${SEVERITY}."; fail=1; }
+            # grype exit 2 (and only 2) means "findings at/above the threshold".
+            # Exit 1 is a scanner ERROR and never reaches here — the grype step
+            # fails the job itself rather than letting an error masquerade as a
+            # vulnerability verdict, which is what `-ne 0` used to do.
+            [[ "${GRYPE_EXIT:-0}" -eq 2 ]] && { echo "::error::Grype found ${GRYPE_FINDINGS:-?} vulnerability finding(s) at/above ${SEVERITY}."; fail=1; }
           fi
           exit "$fail"

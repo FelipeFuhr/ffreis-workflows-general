@@ -65,6 +65,35 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
    `uses: FelipeFuhr/ffreis-workflows-general/.github/actions/<name>@<sha>` —
    and because this repo is public that needs no token.
 
+9. **A scanner's exit code does not say whether it ran.** grype v0.114.0:
+   exit `0` = ran, nothing at/above `--fail-on`; exit `2` = ran, findings;
+   exit `1` = never completed (empty report, `ERROR ...` on stderr);
+   exit `>= 128` = killed by signal `exit-128` — the OOM killer takes grype
+   (largest RSS in the pod cgroup) while bash survives, so the step sees an
+   empty report and *no error text at all*. A repo with **no package manifests
+   is the exit-0 case**: grype writes a valid 358-byte SARIF with
+   `"results": []`. Never conflate those four, and never retry any of them —
+   all are deterministic or fatal, and retrying only keeps a dying job on the
+   runner until it is evicted ("received a shutdown signal"). Log the **package
+   count** beside the finding count: a zero-finding verdict over zero cataloged
+   packages is not the same claim as one over a real dependency tree.
+   This verdict step is duplicated in `general-security-fs.yml` and
+   `general-scan-grype-fs.yml` because rule 7's constraint leaves no way to
+   share it; `scripts/test-grype-scan-verdict.sh` runs one assertion battery
+   against **both**, extracting each step straight from the shipped YAML
+   (the `test-scorecard-token-gate.sh` pattern — preferred over rule 7's
+   mirror-and-diff when there is no need for a standalone script, since there
+   is then no second copy that can drift).
+
+10. **`self-test.yml` has no trigger and no caller — it never runs.** It is
+    `workflow_call`-only and nothing in this repo invokes it, so any workflow
+    whose only "coverage" is a job there has no gate at all
+    (`general-scan-grype-fs.yml` is in this position today). Real PR coverage
+    comes from `ci.yml`: a job there, or `make test` via its `self-checks` job.
+    `ci.yml` also sits near GitHub's per-file reusable-workflow ceiling (it hit
+    `startup_failure` at 23 callers once), so prefer extending
+    `scripts/test-*.sh` + `make test` over adding another caller job.
+
 ## Structure
 
 ```
