@@ -243,8 +243,14 @@ jobs:
   #    bundle proves nothing about these three workflow FILES. They are consumed
   #    directly by dozens of repos, and their only other in-repo callers are
   #    self-test.yml (deleted here: `workflow_call`-only, no caller, last ran
-  #    2026-05-08) and devops-security.yml (disabled_manually). Zero live
-  #    coverage, from both ends.
+  #    2026-05-08) and devops-security.yml (disabled_manually).
+  #
+  #    Precisely, because the three are not in the same position:
+  #    general-scan-grype-fs.yml and general-scan-trivy-fs.yml had ZERO live
+  #    coverage. general-gitleaks.yml is the exception — it carries its own
+  #    `push`/`pull_request` triggers, so its DIRECT path already self-tested.
+  #    What was never exercised is its `workflow_call` interface, which is the
+  #    only path consumers reach it by; the job below covers that.
   #
   # 2. "keeps ci.yml within GitHub's 20-reusable-workflows-per-file limit (was
   #    23 -> startup_failure)". That limit was raised to 50 unique called

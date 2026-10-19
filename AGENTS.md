@@ -15,16 +15,20 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
    an explicit rationale in both the workflow file header and this AGENTS.md entry.
 
    **This rule is currently violated by 11 workflows, and the list is here so the
-   violation is visible rather than rediscovered.** `ci.yml` covers 28 of the 40
-   `general-*.yml` files. Uncovered, with no rationale on file:
+   violation is visible rather than rediscovered.** Of 41 `general-*.yml` files,
+   `ci.yml` exercises 28. Uncovered **with no rationale on file**:
    `general-commit-messages.yml`, `general-dependency-review.yml`,
    `general-kb-sync.yml`, `general-markdownlint.yml`, `general-pr-size.yml`,
    `general-pr-summary.yml`, `general-promote-gate.yml`, `general-sbom.yml`,
    `general-sonarcloud.yml`, `general-typos.yml`,
-   `general-workflow-failure-alert.yml` (plus `general-claude-judge.yml`, which
-   has the documented exception above). There is room: see rule 10 — the per-run
-   ceiling is 50 unique called workflows and `ci.yml` is at 28. Closing a line of
-   this list is always a welcome diff; adding one to it is not.
+   `general-workflow-failure-alert.yml`. Two more are uncovered *by design* and
+   both rationales are on file: `general-claude-judge.yml` (needs live PR
+   context — the exception above) and `general-make-hygiene.yml` (proved by
+   `self-test-make-hygiene.yml`'s fixture job; its `uses:` caller is staged
+   pending a ci-local registry row, documented in that file's header). There is
+   room: see rule 10 — the per-run ceiling is 50 unique called workflows and
+   `ci.yml` is at 28. Closing a line of this list is a welcome diff; adding one
+   without a rationale is not.
 
 2. **Shell injection prevention is enforced by Semgrep.** Never interpolate
    `${{ inputs.* }}` directly inside `run:` blocks. Always route through an `env:` var.
@@ -102,16 +106,30 @@ linting, and other general-purpose CI concerns. Consumed by every other repo in 
    mirror-and-diff when there is no need for a standalone script, since there
    is then no second copy that can drift).
 
-10. **`ci.yml` is the ONLY workflow here with a live trigger, so it is the only
-    place coverage can live.** Everything else is `workflow_call`-only
-    (`general-*`), `disabled_manually` at the GitHub level (`devops-automation`,
-    `devops-security` — check `gh workflow list`, the file's own `on:` block
-    does not tell you), or `push`-on-tag (`release`). A job in a workflow you
-    cannot trigger is not coverage. `self-test.yml` was deleted for exactly
-    this: `workflow_call`-only with no caller anywhere in the fleet, it last ran
-    2026-05-08 and had become a drifted duplicate of two thirds of `ci.yml`.
-    Real coverage = a job in `ci.yml`, or a `scripts/test-*.sh` reached by
-    `make test` via its `self-checks` job.
+10. **Coverage only counts in a workflow you can actually trigger — check, do
+    not assume.** Most files here cannot be triggered: `general-*` are
+    `workflow_call`-only **except `general-codeql.yml` and
+    `general-gitleaks.yml`, which also carry their own `push`/`pull_request`
+    triggers and so self-test their direct path** (their `workflow_call`
+    interface — the only one consumers use — is a separate question, and
+    `ci.yml` is where that gets covered). `devops-automation` and
+    `devops-security` are `disabled_manually` **at the GitHub level**
+    (`gh workflow list` says so; the file's own `on:` block does not);
+    `release` is `push`-on-tag; `lefthook-complex.yml` is
+    `workflow_dispatch`-only and has never once been dispatched. A job in any of
+    those is not a gate. `self-test.yml` was deleted for exactly this:
+    `workflow_call`-only with no caller anywhere in the fleet, last run
+    2026-05-08, and by then a drifted duplicate of two thirds of `ci.yml`.
+
+    Real coverage is therefore: a job in `ci.yml`; a `scripts/test-*.sh` reached
+    by `make test` via its `self-checks` job; or a **`self-test-<thing>.yml`
+    file carrying its own `on: pull_request`** — the pattern
+    `self-test-make-hygiene.yml` introduced. That pattern is sound, and for a
+    reason worth keeping: a `uses:` caller job can only ever prove the PASSING
+    direction, so a gate's own fixture job is the stronger half. Its one defect
+    is the justification written into its header — it cites the caller-count
+    ceiling below as "five past the limit", which is not true. Use the pattern
+    when you want a failing-direction fixture, not to dodge a ceiling.
 
     **The "20 reusable workflows per file" ceiling is folklore — the real number
     is 50.** GitHub raised the limits in November 2025: 20 → **50 unique called
