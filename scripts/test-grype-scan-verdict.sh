@@ -16,10 +16,23 @@
 #   exit 0,      SARIF written -> ran; nothing at/above --fail-on
 #   exit 2,      SARIF written -> ran; findings at/above --fail-on
 #   exit 1,      SARIF EMPTY   -> never completed; stderr has an `ERROR ...` line
-#   exit >= 128, SARIF EMPTY   -> killed by signal exit-128 (OOM killer takes
-#                                 grype, the largest RSS in the pod cgroup, while
-#                                 bash survives — so the step sees an empty file
-#                                 and NO error text at all)
+#   exit >= 128, SARIF EMPTY   -> killed by signal exit-128, by EITHER of two
+#                                 causes the exit code cannot distinguish:
+#                                   * a cgroup OOM kill (grype dies, bash and
+#                                     the runner agent survive), or
+#                                   * an external termination -- a cancelled run,
+#                                     a pod deletion, a runner scale-down --
+#                                     where everything in the pod is signalled.
+#                                 Only the kernel's cgroup oom_kill counter
+#                                 separates them, so the step samples it either
+#                                 side of the scan and the battery below asserts
+#                                 all three outcomes (rose / static / unreadable).
+#                                 This matters because the advice differs: the
+#                                 first is fixed by a larger runner class, the
+#                                 second is made no better by one, and measured
+#                                 peak RSS for this pinned binary is ~330 MiB
+#                                 against a 1.5Gi smallest tier -- so "it OOMed"
+#                                 must be evidenced, never assumed.
 #
 # A repo with no package manifests is the exit-0 case: grype writes a valid
 # 358-byte SARIF with an empty `results` array. So the step must
@@ -27,8 +40,9 @@
 #       verdict over 0 cataloged packages must not read like a clean verdict
 #       over a real dependency tree,
 #   (b) FAIL, loudly and without retrying, when no report was written at all --
-#       a gate that did not run must never pass, and
-#   (c) never let grype's error code 1 masquerade as "vulnerabilities found".
+#       a gate that did not run must never pass,
+#   (c) never let grype's error code 1 masquerade as "vulnerabilities found", and
+#   (d) attribute a signal kill to the cause the kernel actually witnessed.
 set -euo pipefail
 
 repo_root=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
@@ -110,7 +124,19 @@ exec-error) # bad config / unresolvable path: empty report, ERROR on stderr
 	echo "[0001] ERROR failed to catalog: unable to get file resolver: invalid exclusion pattern(s)" >&2
 	exit 1
 	;;
-killed) # SIGKILL (OOM): empty report, no error text, 128+9
+killed-oom) # SIGKILL by the cgroup OOM killer: the kernel bumps oom_kill
+	: >"$sarif_path"
+	: >"$sbom_path"
+	printf 'low 0\nhigh 0\nmax 11\noom 1\noom_kill 1\n' >"${CGROUP_ROOT}/memory.events"
+	exit 137
+	;;
+killed-external) # SIGKILL from OUTSIDE the cgroup (pod deletion, scale-down,
+	# cancellation): same 137, same empty report, but oom_kill does NOT move.
+	: >"$sarif_path"
+	: >"$sbom_path"
+	exit 137
+	;;
+killed) # SIGKILL on a runner that exposes no cgroup oom_kill counter at all
 	: >"$sarif_path"
 	: >"$sbom_path"
 	exit 137
@@ -156,17 +182,43 @@ sys.exit(1)
 PY
 }
 
-run_case() { # $1 = step script, $2 = STUB_MODE, $3 = fail-on-vuln
-	local step=$1 mode=$2 fov=$3
+# A cgroup-v2 memory controller as the kernel presents it inside a pod, with
+# the fleet's smallest tier's ceiling. Rebuilt per case so a mode that bumps
+# oom_kill cannot leak into the next assertion.
+#
+# $1 = destination dir. Pass a path that does NOT exist to model a runner whose
+# cgroup files are unreadable -- "unknown", which the step must not round down
+# to "no OOM happened".
+make_cgroup_fixture() {
+	rm -rf "$1"
+	mkdir -p "$1"
+	printf 'low 0\nhigh 0\nmax 0\noom 0\noom_kill 0\n' >"$1/memory.events"
+	printf '1610612736\n' >"$1/memory.max" # 1.5Gi, the `light` tier
+}
+
+# $1 = step script, $2 = STUB_MODE, $3 = fail-on-vuln,
+# $4 = CGROUP_ROOT (optional; default a fresh readable fixture)
+run_case() {
+	local step=$1 mode=$2 fov=$3 cgroup=${4:-}
 	local work="$tmp/work"
 	rm -rf "$work"
 	mkdir -p "$work"
 	: >"$tmp/gh_output"
+	if [[ -z "$cgroup" ]]; then
+		cgroup="$tmp/cgroup"
+		make_cgroup_fixture "$cgroup"
+	fi
+	# A DB cache the step can size, so the disclosure line is deterministic
+	# rather than dependent on whatever is in the dev box's real HOME.
+	rm -rf "$tmp/grypedb"
+	mkdir -p "$tmp/grypedb/6"
+	head -c $((7 * 1024 * 1024)) /dev/zero >"$tmp/grypedb/6/vulnerability.db"
 	(
 		cd "$work" && PATH="$tmp:$PATH" \
 			GITHUB_OUTPUT="$tmp/gh_output" GITHUB_WORKSPACE="$work" \
 			SCAN_PATH="." SEVERITY="high" FAIL_ON_VULN="$fov" \
-			STUB_MODE="$mode" \
+			STUB_MODE="$mode" CGROUP_ROOT="$cgroup" \
+			GRYPE_DB_CACHE_DIR="$tmp/grypedb" \
 			bash "$step"
 	) >"$tmp/out" 2>&1
 }
@@ -214,15 +266,50 @@ check_common() { # $1 = label, $2 = step script
 			fail "$label: an execution error must not be reported as a vulnerability verdict"
 	fi
 
-	# 4. A killed scanner is named as such. This is the case the retry loop was
-	#    hiding: empty report, no error text, bash alive.
-	if run_case "$step" killed false; then
-		fail "$label: a killed scanner must FAIL -- the scan did not run"
+	# 4a. A genuine cgroup OOM kill: the kernel's oom_kill counter rose. THIS is
+	#     the capacity case, and the only one where a larger runner is the fix,
+	#     so the message must name both the evidence and the exact label to move
+	#     to -- "a larger runner class" with no label is advice nobody can action.
+	if run_case "$step" killed-oom false; then
+		fail "$label: an OOM-killed scanner must FAIL -- the scan did not run"
 	else
 		out_has "killed by signal 9" ||
 			fail "$label: should name the signal; got: $(cat "$tmp/out")"
-		out_has "OOM" ||
-			fail "$label: should point at the OOM killer as the usual cause; got: $(cat "$tmp/out")"
+		out_has "oom_kill counter rose" ||
+			fail "$label: should cite the kernel counter as the evidence; got: $(cat "$tmp/out")"
+		out_has "heavy" ||
+			fail "$label: an OOM should name the runner label to move to; got: $(cat "$tmp/out")"
+	fi
+
+	# 4b. Same signal, same empty report, but the counter did NOT move: the
+	#     scanner was killed from outside its own memory limit. Recommending a
+	#     bigger runner here is wrong -- it spends fleet capacity on a queue or
+	#     lifecycle problem and leaves the real cause unexamined.
+	if run_case "$step" killed-external false; then
+		fail "$label: an externally killed scanner must FAIL -- the scan did not run"
+	else
+		out_has "killed by signal 9" ||
+			fail "$label: should name the signal; got: $(cat "$tmp/out")"
+		out_has "did NOT move" ||
+			fail "$label: should say the OOM counter stayed put; got: $(cat "$tmp/out")"
+		out_has "will NOT fix this" ||
+			fail "$label: should say a bigger runner is not the fix; got: $(cat "$tmp/out")"
+		grep -qF "local\",\"heavy" "$tmp/out" &&
+			fail "$label: must not recommend a larger runner class for a non-OOM kill"
+	fi
+
+	# 4c. A runner that exposes no cgroup counter at all: the step must say the
+	#     two causes are indistinguishable rather than pick the flattering one.
+	#     An absent fixture is "unknown", and unknown must not read as "no OOM".
+	if run_case "$step" killed false "$tmp/no-such-cgroup"; then
+		fail "$label: a killed scanner must FAIL even when the cause is unknowable"
+	else
+		out_has "killed by signal 9" ||
+			fail "$label: should name the signal; got: $(cat "$tmp/out")"
+		out_has "cannot be told apart" ||
+			fail "$label: should admit the cause is undetermined; got: $(cat "$tmp/out")"
+		grep -qF "local\",\"heavy" "$tmp/out" &&
+			fail "$label: must not recommend a larger runner class on an unevidenced kill"
 	fi
 
 	# 5. A report that is not valid JSON is a failed scan, not zero findings.
@@ -254,6 +341,20 @@ check_common() { # $1 = label, $2 = step script
 		fail "$label: the deterministic-failure retry loop must not come back"
 	grep -qE '^[[:space:]]*sleep ' "$step" &&
 		fail "$label: no backoff sleep belongs in this step"
+
+	# 9. The step states the size of the vulnerability DB it matched against.
+	#    A ~3 GiB DB re-fetched per job is where a multi-minute "scan" of a
+	#    sub-megabyte tree actually goes, and the fleet cannot reason about that
+	#    from a log that only reports findings. Disclosure, not scope reduction:
+	#    assertions 1-2 above still require the full package census.
+	if run_case "$step" clean-with-packages false; then
+		out_has "MiB vulnerability DB" ||
+			fail "$label: should state the DB size it matched against; got: $(cat "$tmp/out")"
+		out_has "7 MiB vulnerability DB" ||
+			fail "$label: the DB size must be measured, not hardcoded; got: $(cat "$tmp/out")"
+	else
+		fail "$label: a clean scan over 3 packages must PASS; got: $(cat "$tmp/out")"
+	fi
 	return 0
 }
 
