@@ -119,12 +119,18 @@ jobs:
           # either side of the scan. CGROUP_ROOT exists purely so
           # scripts/test-grype-scan-verdict.sh can point this at a fixture;
           # nothing sets it in a real run.
+          # Both helpers return "" for "could not tell" and must NEVER fail:
+          # GitHub runs this step under `bash -e -o pipefail`, so a probe that
+          # exits non-zero kills the whole scan before grype is even invoked.
+          # That is not hypothetical — `du` on a DB cache directory that does
+          # not exist yet exits 1, and it took the step down in 10ms.
           cgroup_oom_kills() {
-            local f
+            local f v
             for f in "${CGROUP_ROOT:-/sys/fs/cgroup}/memory.events" \
                      "${CGROUP_ROOT:-/sys/fs/cgroup}/memory/memory.oom_control"; do
               if test -r "$f"; then
-                awk '$1 == "oom_kill" { print $2; hit = 1 } END { if (!hit) print "" }' "$f"
+                v="$(awk '$1 == "oom_kill" { print $2; hit = 1 } END { if (!hit) print "" }' "$f")" || v=""
+                echo "$v"
                 return 0
               fi
             done
@@ -142,7 +148,16 @@ jobs:
               echo "${HOME:-/root}/.cache/grype/db"
             fi
           }
-          db_bytes() { du -sb "$(grype_db_dir)" 2>/dev/null | cut -f1; }
+          db_bytes() {
+            local d n
+            d="$(grype_db_dir)"
+            if ! test -d "$d"; then
+              echo ""
+              return 0
+            fi
+            n="$(du -sb "$d" 2>/dev/null | cut -f1)" || n=""
+            echo "$n"
+          }
           oom_before="$(cgroup_oom_kills)"
           db_before="$(db_bytes)"
 

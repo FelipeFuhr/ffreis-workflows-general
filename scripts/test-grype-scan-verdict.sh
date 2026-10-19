@@ -182,6 +182,19 @@ sys.exit(1)
 PY
 }
 
+# Exactly how GitHub invokes a `shell: bash` step:
+#   /usr/bin/bash --noprofile --norc -e -o pipefail {0}
+#
+# `-e` is the load-bearing one and it is NOT optional faithfulness. The step
+# bodies set `set -uo pipefail` themselves, which does not turn `-e` off, so a
+# probe command that exits non-zero kills the whole step. Running the extracted
+# step under a plain `bash` hid exactly that: a `du` on a vulnerability-DB cache
+# directory that does not exist yet exits 1, and on a real runner it took the
+# scan down in 10ms, before grype was invoked at all, while this battery stayed
+# green because its fixture pre-created the directory. The live ci.yml job is
+# what caught it. Keep these flags identical to the line above.
+GHA_SHELL_FLAGS=(--noprofile --norc -e -o pipefail)
+
 # A cgroup-v2 memory controller as the kernel presents it inside a pod, with
 # the fleet's smallest tier's ceiling. Rebuilt per case so a mode that bumps
 # oom_kill cannot leak into the next assertion.
@@ -218,8 +231,8 @@ run_case() {
 			GITHUB_OUTPUT="$tmp/gh_output" GITHUB_WORKSPACE="$work" \
 			SCAN_PATH="." SEVERITY="high" FAIL_ON_VULN="$fov" \
 			STUB_MODE="$mode" CGROUP_ROOT="$cgroup" \
-			GRYPE_DB_CACHE_DIR="$tmp/grypedb" \
-			bash "$step"
+			GRYPE_DB_CACHE_DIR="${GRYPE_DB_DIR_OVERRIDE:-$tmp/grypedb}" \
+			bash "${GHA_SHELL_FLAGS[@]}" "$step"
 	) >"$tmp/out" 2>&1
 }
 
@@ -354,6 +367,21 @@ check_common() { # $1 = label, $2 = step script
 			fail "$label: the DB size must be measured, not hardcoded; got: $(cat "$tmp/out")"
 	else
 		fail "$label: a clean scan over 3 packages must PASS; got: $(cat "$tmp/out")"
+	fi
+
+	# 10. Every probe the step adds must survive the state it meets on a FRESH
+	#     runner, where the DB cache directory does not exist yet. Under GitHub's
+	#     `-e` a probe that exits non-zero kills the scan before grype runs, and
+	#     the step then reports nothing at all -- a gate that fails for a reason
+	#     unrelated to anything it was meant to check. This is a regression test:
+	#     it is the bug the live job caught while this battery was green.
+	if GRYPE_DB_DIR_OVERRIDE="$tmp/no-such-db-cache" run_case "$step" clean-with-packages false; then
+		out_has "3 package(s) cataloged" ||
+			fail "$label: a missing DB cache dir must not stop the census; got: $(cat "$tmp/out")"
+		out_has "MiB vulnerability DB" &&
+			fail "$label: must not report a DB size when there is no DB cache directory"
+	else
+		fail "$label: a missing DB cache directory must not fail the step; got: $(cat "$tmp/out")"
 	fi
 	return 0
 }
