@@ -19,6 +19,7 @@ test: ## Run repo self-checks (no live-Actions run required)
 	bash scripts/test-select-shell-files.sh
 	bash scripts/test-scorecard-token-gate.sh
 	bash scripts/test-grype-scan-verdict.sh
+	bash scripts/test-ci-caller-contract.sh
 	cd .github/actions/ci-budget && python3 -m unittest test_ci_budget
 	cd .github/actions/sonar-scan-with-fallback && python3 -m unittest discover -p 'test_*.py'
 

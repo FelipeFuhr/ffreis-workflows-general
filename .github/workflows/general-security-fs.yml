@@ -17,6 +17,35 @@ name: General / Security Filesystem Bundle
 # sha_pinning_required rejects at "Set up job" with zero steps. It now downloads
 # the osv-scanner binary directly. Callers still pinned to a pre-fix ref see that
 # startup failure and need a pin bump, not a workflow change.)
+#
+# ---------------------------------------------------------------------------
+# Picking a `runner:` — and why the default is deliberately the smallest tier.
+#
+# The scanners here are I/O- and download-heavy, not memory-heavy. Measured
+# against the pinned grype v0.114.0 binary this workflow installs: peak RSS
+# 188 MiB with a warm DB, 330 MiB cold; a cold scan plus a 700 MiB co-resident
+# process survives a 1500M swap-off cgroup. What IS large is grype's
+# vulnerability database — one ~3.1 GiB SQLite file, re-fetched whenever stale —
+# which is why this step can take four minutes over a sub-megabyte tree. That
+# cost is wall clock and disk, not resident memory.
+#
+# So the default `'["self-hosted","local"]'` (the 1.5Gi `light` tier) is the
+# right default, and raising it is not a remedy for a red run on its own:
+#
+#   * Step says "oom_kill counter rose" -> a real cgroup OOM. Pass
+#     runner: '["self-hosted","local","heavy"]' (3Gi). Escalate to `+large`
+#     (5Gi) only if 3Gi is measured insufficient; it has ONE lane and is
+#     ephemeral, so a short job there pays a restart-backoff tax.
+#   * Step says the counter "did NOT move" -> the runner was torn down from
+#     outside its cgroup (cancelled run, pod deletion, scale-down). A bigger
+#     runner will not fix it and spends a three-lane shared pool to no effect.
+#     Re-dispatch, and look at queue depth.
+#   * `scan-history: true` is NOT a memory lever. It only changes `fetch-depth`
+#     for gitleaks' history scan; grype catalogs package manifests, so the size
+#     of `.git` does not move its footprint. Do not drop it to "save memory" —
+#     with fetch-depth 1 a history secret scan sees only the tip commit and goes
+#     green having checked almost nothing.
+# ---------------------------------------------------------------------------
 
 on:
   workflow_call:
@@ -151,9 +180,12 @@ jobs:
           # deterministic or fatal. The previous 3-attempt backoff loop could not
           # fix any of them; it only kept a dying job on the runner longer, which
           # is what turned a diagnosable failure into "received a shutdown
-          # signal". The kill case is why the loop looked plausible: the OOM
-          # killer takes grype (the largest RSS in the pod cgroup) while bash
-          # survives, so the step saw an empty file and no error text at all.
+          # signal". The kill case is why the loop looked plausible: whatever
+          # killed grype left bash alive, so the step saw an empty file and no
+          # error text at all. Note that "whatever" is load-bearing — a cgroup
+          # OOM and an external SIGTERM cascade both land here as 137, and only
+          # the oom_kill counter sampled below can say which, so neither this
+          # comment nor the error message may assume one.
           #
           # scan-fix(grype:self-scan): exclude grype's own binary — installed to
           # /usr/local/bin/grype (GHA) or /bin/grype (host/act); without this,
@@ -167,6 +199,60 @@ jobs:
           # zero-finding SARIF is only trustworthy next to the number of packages
           # cataloged, so both are logged. One scan, two serializers — grype
           # builds the SBOM either way; this only asks it to also write it out.
+          # --- kill attribution ------------------------------------------------
+          # grype exits 137 BOTH when the kernel OOM-kills it inside its own
+          # cgroup AND when something outside that cgroup tears the runner down
+          # (a cancelled run, a pod deletion, a scale-down). The exit code alone
+          # cannot separate them, so it must not be used to hand out advice:
+          # measured against this pinned v0.114.0 binary, a scan peaks at
+          # ~330 MiB RSS even while importing its ~3.1 GiB vulnerability DB,
+          # which fits the fleet's smallest 1.5Gi runner four times over. The
+          # kernel's own oom_kill counter is the only local witness, so sample it
+          # either side of the scan. CGROUP_ROOT exists purely so
+          # scripts/test-grype-scan-verdict.sh can point this at a fixture;
+          # nothing sets it in a real run.
+          # Both helpers return "" for "could not tell" and must NEVER fail:
+          # GitHub runs this step under `bash -e -o pipefail`, so a probe that
+          # exits non-zero kills the whole scan before grype is even invoked.
+          # That is not hypothetical — `du` on a DB cache directory that does
+          # not exist yet exits 1, and it took the step down in 10ms.
+          cgroup_oom_kills() {
+            local f v
+            for f in "${CGROUP_ROOT:-/sys/fs/cgroup}/memory.events" \
+                     "${CGROUP_ROOT:-/sys/fs/cgroup}/memory/memory.oom_control"; do
+              if test -r "$f"; then
+                v="$(awk '$1 == "oom_kill" { print $2; hit = 1 } END { if (!hit) print "" }' "$f")" || v=""
+                echo "$v"
+                return 0
+              fi
+            done
+            # Unreadable is "unknown", never "zero". Claiming no OOM happened
+            # because we could not look is the same vacuous verdict this step
+            # exists to refuse everywhere else.
+            echo ""
+          }
+          grype_db_dir() {
+            if test -n "${GRYPE_DB_CACHE_DIR:-}"; then
+              echo "${GRYPE_DB_CACHE_DIR}"
+            elif test -n "${XDG_CACHE_HOME:-}"; then
+              echo "${XDG_CACHE_HOME}/grype/db"
+            else
+              echo "${HOME:-/root}/.cache/grype/db"
+            fi
+          }
+          db_bytes() {
+            local d n
+            d="$(grype_db_dir)"
+            if ! test -d "$d"; then
+              echo ""
+              return 0
+            fi
+            n="$(du -sb "$d" 2>/dev/null | cut -f1)" || n=""
+            echo "$n"
+          }
+          oom_before="$(cgroup_oom_kills)"
+          db_before="$(db_bytes)"
+
           sbom_json="$(mktemp -d)/grype-sbom.json"
           # GHA invokes `shell: bash` with -e, so a non-zero grype exit would kill
           # the shell before the code could be captured; && / || keeps it alive.
@@ -192,7 +278,16 @@ jobs:
           if ! test -s grype.sarif; then
             # No report at all: the scan did NOT run, so this can never pass.
             if [[ "$exit_code" -ge 128 ]]; then
-              echo "::error::grype was killed by signal $((exit_code - 128)) before writing a report — the scan did not run. On a memory-capped runner this is almost always the OOM killer choosing grype; give this job a larger runner class rather than re-running it."
+              oom_after="$(cgroup_oom_kills)"
+              signal=$((exit_code - 128))
+              mem_max="$(head -n1 "${CGROUP_ROOT:-/sys/fs/cgroup}/memory.max" 2>/dev/null || true)"
+              if [[ -n "$oom_before" && -n "$oom_after" && "$oom_after" -gt "$oom_before" ]]; then
+                echo "::error::grype was killed by signal ${signal} and this cgroup's oom_kill counter rose ${oom_before} -> ${oom_after} — the scan was OOM-killed inside its own memory limit (memory.max=${mem_max:-unknown}). This one IS a capacity problem: give the caller a larger runner class, e.g. runner: '[\"self-hosted\",\"local\",\"heavy\"]' (3Gi) in place of the 1.5Gi default."
+              elif [[ -n "$oom_before" && -n "$oom_after" ]]; then
+                echo "::error::grype was killed by signal ${signal} but this cgroup's oom_kill counter did NOT move (still ${oom_after}) — the scan was terminated from OUTSIDE its memory limit: a cancelled run, a pod deletion or a runner scale-down. A larger runner class will NOT fix this; re-dispatch the run."
+              else
+                echo "::error::grype was killed by signal ${signal} before writing a report — the scan did not run. This runner exposes no cgroup oom_kill counter, so an OOM kill and an external termination cannot be told apart here; do not assume either."
+              fi
             else
               reason=""
               if test -s grype.stderr.log; then
@@ -237,6 +332,19 @@ jobs:
             echo "::error::grype wrote a report but exited ${exit_code}, which is neither 'clean' (0) nor 'findings' (2)."
             dump_stderr
             exit 1
+          fi
+
+          # Name the DB cost. A clean verdict says what was examined; this says
+          # what it was examined AGAINST, and where a multi-minute step over a
+          # small tree actually spends itself. Nothing is skipped here — this is
+          # disclosure, not a scope reduction.
+          db_after="$(db_bytes)"
+          if [[ "$db_after" =~ ^[0-9]+$ ]]; then
+            db_note="already cached on this runner"
+            if [[ ! "$db_before" =~ ^[0-9]+$ ]] || [[ "$db_after" -gt "$db_before" ]]; then
+              db_note="fetched during this run"
+            fi
+            echo "Grype: matched against a $((db_after / 1048576)) MiB vulnerability DB (${db_note})."
           fi
 
           if [[ "$packages" -eq 0 ]]; then

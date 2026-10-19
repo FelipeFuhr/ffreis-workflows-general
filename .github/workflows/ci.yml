@@ -233,9 +233,85 @@ jobs:
       # self-hosted on public repos by default). Must stay hosted.
       runner: '["ubuntu-latest"]'
 
-  # trivy-fs + grype-fs + gitleaks self-tests removed: superseded by security-fs
-  # (the consolidated bundle exercises all three). Also keeps ci.yml within
-  # GitHub's 20-reusable-workflows-per-file limit (was 23 -> startup_failure).
+  # The three scanner self-tests below are back, and the two reasons #79 gave for
+  # removing them were both wrong:
+  #
+  # 1. "superseded by security-fs (the consolidated bundle exercises all three)".
+  #    It does not. general-security-fs.yml contains its OWN copies of the
+  #    Trivy/grype/gitleaks steps — AGENTS.md rules 7 and 9 explain why a
+  #    reusable workflow cannot share logic with another one — so calling the
+  #    bundle proves nothing about these three workflow FILES. They are consumed
+  #    directly by dozens of repos, and their only other in-repo callers are
+  #    self-test.yml (deleted here: `workflow_call`-only, no caller, last ran
+  #    2026-05-08) and devops-security.yml (disabled_manually).
+  #
+  #    Precisely, because the three are not in the same position:
+  #    general-scan-grype-fs.yml and general-scan-trivy-fs.yml had ZERO live
+  #    coverage. general-gitleaks.yml is the exception — it carries its own
+  #    `push`/`pull_request` triggers, so its DIRECT path already self-tested.
+  #    What was never exercised is its `workflow_call` interface, which is the
+  #    only path consumers reach it by; the job below covers that.
+  #
+  # 2. "keeps ci.yml within GitHub's 20-reusable-workflows-per-file limit (was
+  #    23 -> startup_failure)". That limit was raised to 50 unique called
+  #    workflows (and 10 nesting levels) in November 2025, and this very file
+  #    disproves 20 empirically: it carried 25 unique callers and 31 jobs before
+  #    this change and its runs complete green. The caller count was almost
+  #    certainly never the 23-caller startup_failure either — #82 found and fixed
+  #    the actual residual cause (a missing `id-token: write` on the scorecard
+  #    caller) afterwards.
+  #
+  # With these three: 28 unique reusable workflows, 34 jobs. The binding limits
+  # are 50 unique workflows per run and 256 jobs per run, so this is not close.
+  trivy-fs:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/general-scan-trivy-fs.yml
+    with:
+      scan-ref: examples/hello
+      upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
+
+  grype-fs:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/general-scan-grype-fs.yml
+    with:
+      path: examples/hello
+      upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
+
+  gitleaks:
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+    uses: ./.github/workflows/general-gitleaks.yml
+    with:
+      working-directory: .
+      # scan-history: true on purpose. It is the only self-test in this file that
+      # exercises the fetch-depth: 0 path, which is the configuration real
+      # callers use and the one a history scan can only be wrong about silently:
+      # with fetch-depth 1 gitleaks has nothing but the tip to look at, so a
+      # green run would prove the gate works over one commit. This repo's history
+      # is 393 commits and verified clean.
+      scan-history: true
+      upload-sarif: false
+      # This repo is public — self-hosted runners can't serve it (org-scoped pool
+      # has no visibility into personal-account repos; GitHub also blocks
+      # self-hosted on public repos by default). Must stay hosted.
+      runner: '["ubuntu-latest"]'
+
   security-fs:
     permissions:
       actions: read
