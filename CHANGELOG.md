@@ -1,5 +1,22 @@
 # Changelog
 
+## [2.2.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.1.0...v2.2.0) (2026-10-19)
+
+
+### Features
+
+* **ci-budget:** size CI work from the cgroup, not the node ([#174](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/174)) ([67ab77c](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/67ab77cd9e05184bb7e860e83481a4e339a63a0c))
+* **make-hygiene:** add a reusable gate for comment-induced trailing whitespace ([#180](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/180)) ([11d8110](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/11d8110df68c0d11260d0fa77566f7689c77dcd0))
+* **sonar:** add shared local-SonarQube fallback composite action ([c0ba1ad](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/c0ba1ad0332f094ce1c8ab57c954cf581a51ddf1))
+
+
+### Bug Fixes
+
+* **ci:** reach the scanner self-tests, attribute grype kills ([c2a6ac5](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/c2a6ac5670391226a53f53954b96943f2a871f01))
+* **grype:** pass a zero-finding scan, fail a scan that never ran ([#178](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/178)) ([f6c86da](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/f6c86dab8ab3f36e995b17c11857065175fb10c5))
+* **make:** move pin comments off the assignment line ([#179](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/179)) ([a2e4fbc](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/a2e4fbc521fa86b0e4a5712492b851a0ba3119e7))
+* **scorecard:** match the PAT error wording and the token-present case ([#172](https://github.com/FelipeFuhr/ffreis-workflows-general/issues/172)) ([3f9c528](https://github.com/FelipeFuhr/ffreis-workflows-general/commit/3f9c528dfcb3f782a3a13486b37675ee2f5311ef))
+
 ## [2.1.0](https://github.com/FelipeFuhr/ffreis-workflows-general/compare/v2.0.5...v2.1.0) (2026-09-24)
 
 
