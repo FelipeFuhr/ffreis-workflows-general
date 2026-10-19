@@ -1,0 +1,131 @@
+name: Self Test / make hygiene
+
+# Self-test for general-make-hygiene.yml. It lives in its OWN file rather than in
+# ci.yml for two reasons:
+#   * ci.yml already references 25 unique reusable workflows, five past the limit
+#     its own comment records hitting ("was 23 -> startup_failure"). A startup
+#     failure takes every other check in that file down with it, so a new unique
+#     caller does not go there.
+#   * a gate's self-test has to assert BOTH directions, and a `uses:` caller job
+#     can only ever prove the passing one. The fixture job below is where the
+#     failing direction is actually proven.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main]
+
+concurrency:
+  group: self-test-make-hygiene-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions: {}
+
+# A second job calling general-make-hygiene through its workflow_call interface
+# is STAGED, not forgotten. Adding that caller now creates a reusable-workflow
+# reference that ffreis-platform-ci-local's drift gate has no registry row for
+# yet, and that gate runs as a pre-commit hook against the registry on `main`:
+# it correctly blocks the commit (and would fail this repo's own
+# ci-local-coverage job in `defines` mode). Add the caller job in the same PR
+# that lands ffreis-platform-ci-local#32. Until then the `fixtures` job below is
+# the proof, and it is the stronger half anyway — a caller job can only ever
+# prove the passing direction.
+#
+# Note for whoever adds it: the drift gate's reference regex is textual, so even
+# a commented-out caller line counts as a reference. That is why this note
+# describes the job instead of showing it.
+
+jobs:
+  # Both directions, against fixtures, using the SAME fetch the reusable workflow
+  # performs. A gate whose test cannot fail is not a gate.
+  fixtures:
+    # Draft-gated: a plain job carries its own gate. Enforced by
+    # general-workflows-policy's ci_draft_policy check.
+    if: ${{ github.event_name != 'pull_request' || github.event.pull_request.draft == false }}
+    name: Fixtures (fails on the defect, passes on every legitimate form)
+    permissions:
+      contents: read
+    # This repo is public — self-hosted runners can't serve it, same reason as above.
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Harden the runner (audit egress)
+        uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+        with:
+          egress-policy: audit
+
+      - name: Fetch the auditor from its canonical home
+        run: |
+          set -euo pipefail
+          curl -fsSL "https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/main/scripts/audit-make-inline-comments.sh" \
+            -o /tmp/audit.sh
+          chmod +x /tmp/audit.sh
+
+      - name: FAIL direction — the real fleet shape must exit 1 and measure 42
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/fx-bad
+          cat >/tmp/fx-bad/Makefile <<'MK'
+          PLATFORM_STANDARDS_SHA := 3c787edb4e96ddea2e86b2add2c32139685e8db7  # v1.2.1
+          PLATFORM_STANDARDS_RAW := https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards
+          hook-scripts:
+          	@curl -fsSL "$(PLATFORM_STANDARDS_RAW)/$(PLATFORM_STANDARDS_SHA)/scripts/install_act.sh" -o /dev/null
+          MK
+          status=0
+          bash /tmp/audit.sh /tmp/fx-bad/Makefile || status=$?
+          if [ "$status" -ne 1 ]; then
+            echo "::error::the auditor did not fail on the defective fixture (exit $status)"
+            exit 1
+          fi
+          # The defect is whitespace, so a byte length is the only honest assertion.
+          # shellcheck disable=SC2016  # $(VAR) must reach make, not expand in bash
+          printf 'probe:\n\t@printf %%s "$(PLATFORM_STANDARDS_SHA)" | wc -c\n' >/tmp/probe.mk
+          len="$(cd /tmp/fx-bad && make --no-print-directory -f Makefile -f /tmp/probe.mk probe | tr -cd '0-9')"
+          if [ "$len" != "42" ]; then
+            echo "::error::defective fixture measured $len, expected 42"
+            exit 1
+          fi
+          echo "FAIL direction OK: exit 1, len=42"
+
+      - name: PASS direction — repaired, and every legitimate form
+        run: |
+          set -euo pipefail
+          bash /tmp/audit.sh --fix /tmp/fx-bad/Makefile
+          len="$(cd /tmp/fx-bad && make --no-print-directory -f Makefile -f /tmp/probe.mk probe | tr -cd '0-9')"
+          if [ "$len" != "40" ]; then
+            echo "::error::repaired fixture measured $len, expected 40"
+            exit 1
+          fi
+          bash /tmp/audit.sh /tmp/fx-bad/Makefile
+          mkdir -p /tmp/fx-ok
+          cat >/tmp/fx-ok/Makefile <<'MK'
+          # v1.2.1
+          SHA := 3c787edb4e96ddea2e86b2add2c32139685e8db7
+          COLOR := "#fff"
+          QUOTED := '#also-not-a-comment'
+          FLUSH := abc# comment flush against the value
+          EMPTY =   # nothing to corrupt
+          HOOKS := \
+          	one.sh \
+          	two.sh
+          URL := x/$(SHA)/y
+          all:
+          	@echo hi  # a recipe line is not an assignment
+          MK
+          bash /tmp/audit.sh /tmp/fx-ok/Makefile
+          echo "PASS direction OK: len=40, and the legitimate forms are clean"
+
+      - name: A failed fetch must fail the gate, not skip it
+        run: |
+          set -euo pipefail
+          # The one outcome a gate must never have is passing because its own
+          # tooling went missing. `curl -f` under `set -e` is what guarantees it.
+          status=0
+          ( set -euo pipefail
+            curl -fsSL "https://raw.githubusercontent.com/FelipeFuhr/ffreis-platform-standards/main/scripts/no-such-auditor.sh" \
+              -o /tmp/nope.sh ) || status=$?
+          if [ "$status" -eq 0 ]; then
+            echo "::error::a missing auditor fetched successfully — the fail-loud guarantee is broken"
+            exit 1
+          fi
+          echo "fail-loud OK: a missing auditor is a non-zero curl, which fails the step"
