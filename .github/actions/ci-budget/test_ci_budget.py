@@ -213,5 +213,39 @@ class TestPeakAndOom(unittest.TestCase):
             self.assertEqual(cb.read_oom_kills(str(sysfs)), 0)
 
 
+class TestUtilisation(unittest.TestCase):
+    """The fit assertion — "does this work still fit its tier, with margin".
+
+    The regression these prevent is not an OOM. It is the quarter BEFORE the
+    OOM, when a dependency bump takes a job from 50% to 95% of its pod and
+    nothing says anything, so the eventual kill arrives with no history and
+    reads as flaky infrastructure.
+    """
+
+    def test_basic_ratio(self):
+        self.assertEqual(cb.utilisation_pct(1554, 3072), 51)
+
+    def test_at_the_ceiling(self):
+        self.assertEqual(cb.utilisation_pct(3072, 3072), 100)
+
+    def test_the_measured_heavy_tier_case(self):
+        """2541 MiB measured under a cgroup mirroring the heavy pod."""
+        self.assertEqual(cb.utilisation_pct(2541, 3072), 83)
+
+    def test_unknown_peak_is_unknown_not_zero(self):
+        """Critical: must be None, never 0.
+
+        0 would read as "0% utilised — comfortably fits", which is the exact
+        inversion of the truth ("we could not measure this at all").
+        """
+        self.assertIsNone(cb.utilisation_pct(None, 3072))
+
+    def test_unknown_budget_is_unknown(self):
+        self.assertIsNone(cb.utilisation_pct(1554, None))
+
+    def test_zero_budget_does_not_divide_by_zero(self):
+        self.assertIsNone(cb.utilisation_pct(1554, 0))
+
+
 if __name__ == "__main__":
     unittest.main(verbosity=2)

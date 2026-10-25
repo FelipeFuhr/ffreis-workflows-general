@@ -43,6 +43,28 @@ inputs:
     description: 'mode=report: fail the step when the OOM counter rose.'
     required: false
     default: 'false'
+  max-utilisation-pct:
+    description: >-
+      mode=report: assert observed peak stays under this percentage of the
+      budget. 0 (default) disables the assertion and reports only.
+
+      This is what turns "it fits this tier" from a measurement someone once
+      wrote in a comment into a continuously checked property. A crate's
+      dependency closure grows; today's comfortable 50% is next quarter's 95%
+      after one SDK bump, and without this nothing notices until the job is
+      OOM-killed — a failure that surfaces as a dead runner agent, not as a
+      resource error.
+
+      When the runner exposes no peak counter the assertion is SKIPPED and says
+      so loudly, rather than passing silently.
+    required: false
+    default: '0'
+  fail-on-over-utilisation:
+    description: >-
+      mode=report: make breaching max-utilisation-pct a step failure rather
+      than an error annotation.
+    required: false
+    default: 'false'
 
 outputs:
   workers:
@@ -72,6 +94,12 @@ outputs:
   peak-mib:
     description: 'mode=report: observed peak, when the kernel exposes it.'
     value: ${{ steps.budget.outputs.peak-mib }}
+  utilisation-pct:
+    description: 'mode=report: peak as a percentage of the budget. Empty when unmeasurable.'
+    value: ${{ steps.budget.outputs.utilisation-pct }}
+  headroom-mib:
+    description: 'mode=report: budget minus observed peak.'
+    value: ${{ steps.budget.outputs.headroom-mib }}
   oom-kills:
     description: 'mode=report: cgroup oom_kill counter.'
     value: ${{ steps.budget.outputs.oom-kills }}
@@ -91,6 +119,8 @@ runs:
         CI_BUDGET_CPU_DIVISOR: ${{ inputs.cpu-divisor }}
         CI_BUDGET_BASELINE_OOM: ${{ inputs.baseline-oom-kills }}
         CI_BUDGET_FAIL_ON_OOM: ${{ inputs.fail-on-oom }}
+        CI_BUDGET_MAX_UTILISATION_PCT: ${{ inputs.max-utilisation-pct }}
+        CI_BUDGET_FAIL_ON_OVER_UTILISATION: ${{ inputs.fail-on-over-utilisation }}
         CI_BUDGET_ACTION_PATH: ${{ github.action_path }}
       run: |
         set -euo pipefail
@@ -106,8 +136,12 @@ runs:
             ;;
           report)
             args=(report --baseline-oom-kills "${CI_BUDGET_BASELINE_OOM}")
+            args+=(--max-utilisation-pct "${CI_BUDGET_MAX_UTILISATION_PCT}")
             if [ "${CI_BUDGET_FAIL_ON_OOM}" = "true" ]; then
               args+=(--fail-on-oom)
+            fi
+            if [ "${CI_BUDGET_FAIL_ON_OVER_UTILISATION}" = "true" ]; then
+              args+=(--fail-on-over-utilisation)
             fi
             python3 "$script" "${args[@]}"
             ;;
