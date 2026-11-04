@@ -28,19 +28,50 @@ kc=(kubectl --server=https://kubernetes.default.svc
     --token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
     -n ci)
 
+# 360s was lifted from the role's sonarqube_ready_timeout_seconds, which is
+# the POD-PROBE budget. Reaching UP on a cold PVC takes materially longer
+# (measured: still STARTING at 7 minutes on a freshly provisioned volume), so
+# the two must not share a number. Overridable per caller if needed.
+READY_TIMEOUT_SECONDS="${READY_TIMEOUT_SECONDS:-900}"
+
 now="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 "${kc[@]}" patch deployment sonarqube --type=merge -p \
   "{\"spec\":{\"replicas\":1},\"metadata\":{\"annotations\":{\"sonarqube.ffreis/last-scaled-up\":\"${now}\"}}}"
 
-# Cold-boot budget matches ffreis-home-infra's own
-# sonarqube_ready_timeout_seconds default (see that role's defaults/main.yml).
-echo "waiting for sonarqube to become ready..."
-deadline=$(( $(date +%s) + 360 ))
+# TWO waits, because POD READINESS IS NOT APPLICATION READINESS here.
+#
+# The Deployment's readinessProbe (ffreis-home-infra, role `sonarqube`) is an
+# httpGet on /api/system/status with NO body check — and SonarQube answers
+# that with HTTP 200 while still reporting {"status":"STARTING"}. So
+# readyReplicas flips to 1 minutes before the server can serve an analysis.
+# Measured 2026-11-04: pod 1/1 Ready at 4m47s while the API still said
+# STARTING, and a scan launched in that window dies on a connection the
+# scanner reports as a token or network problem.
+#
+# Waiting on readyReplicas alone was therefore a race this job won only when
+# the server happened to be warm — which is most of the time, since it scales
+# from zero only after an idle period, and is exactly why it looked flaky
+# rather than broken.
+echo "waiting for the sonarqube pod to be ready..."
+deadline=$(( $(date +%s) + READY_TIMEOUT_SECONDS ))
 until [[ "$("${kc[@]}" get deployment sonarqube -o jsonpath='{.status.readyReplicas}')" == "1" ]]; do
   if [[ $(date +%s) -ge $deadline ]]; then
-    echo "::error::sonarqube did not become ready within 360s" >&2
+    echo "::error::sonarqube pod did not become ready within ${READY_TIMEOUT_SECONDS}s" >&2
     exit 1
   fi
   sleep 5
 done
-echo "sonarqube ready"
+echo "pod ready; waiting for sonarqube itself to report UP..."
+
+# Reached in-cluster by service DNS — this job runs on a self-hosted runner
+# pod in the same cluster, which is the same path the scanner itself uses.
+status_url="http://sonarqube.ci.svc.cluster.local:9000/api/system/status"
+until curl -fsS --max-time 10 "${status_url}" 2>/dev/null | grep -q '"status":"UP"'; do
+  if [[ $(date +%s) -ge $deadline ]]; then
+    echo "::error::sonarqube never reported UP within ${READY_TIMEOUT_SECONDS}s. Last status: $(curl -fsS --max-time 10 "${status_url}" 2>/dev/null || echo unreachable)" >&2
+    echo "::notice::STARTING for a long time means a cold PVC or an IO-starved node, not a broken server. A 'create process timeout' in the local-path provisioner log is the usual root cause." >&2
+    exit 1
+  fi
+  sleep 5
+done
+echo "sonarqube UP"
