@@ -24,6 +24,25 @@ inputs:
   sonar-token:
     description: "SONAR_TOKEN. Composite actions have no implicit secrets context — the caller must pass the SONAR_TOKEN secret's value explicitly via this input."
     required: true
+  local-sonar-token:
+    description: >-
+      Token for the FLEET'S SELF-HOSTED SonarQube, which is a different server
+      with its own user database — a SonarCloud token is not a credential on
+      it. Without this, every private repo's scan reaches the local server
+      holding only the SonarCloud token and dies on
+      `HTTP 401 Unauthorized ... check the property sonar.token`, with the
+      private-repo routing working exactly as designed and the gate still
+      permanently red (measured 2026-11-04 on ffreis-urbs-infra PR #10).
+
+      Optional, and falls back to `sonar-token` when unset so no existing
+      caller changes behaviour by upgrading — but that fallback is the broken
+      case, so taking it emits a warning naming the fix rather than failing
+      silently. Set it to a GLOBAL_ANALYSIS_TOKEN minted on the in-cluster
+      server; it persists, because that deployment's `/opt/sonarqube/data`
+      (the embedded database, hence users and tokens) is on the
+      `sonarqube-data` PVC and survives its scale-to-zero cycle.
+    required: false
+    default: ""
   extra-sonar-args:
     description: "Language-specific sonar.* args (coverage report paths, sources/tests, exclusions, language version, etc). Must NOT include projectKey/organization/host — those are managed by this action."
     required: false
@@ -88,13 +107,27 @@ runs:
       shell: bash
       run: bash "${{ github.action_path }}/scale_local_sonarqube.sh"
 
+    # The 401 this guards is otherwise indistinguishable from a bad token, a
+    # revoked token, or a server problem: the scanner says only "check the
+    # property sonar.token", and the routing that put us here is CORRECT.
+    # Named here, before the attempt, so the log says what to fix.
+    - name: Warn when the local scan has no dedicated token
+      if: steps.scale-local.outcome == 'success' && inputs.local-sonar-token == ''
+      shell: bash
+      run: |
+        echo "::warning title=No local SonarQube token::This scan is going to the fleet's SELF-HOSTED SonarQube (correct for a private repo), but no 'local-sonar-token' was supplied, so it will present the SonarCloud SONAR_TOKEN. That is a different server with its own user database and will answer 401. Mint a GLOBAL_ANALYSIS_TOKEN on the in-cluster server and pass it as 'local-sonar-token'."
+
     - name: SonarQube scan (local)
       id: scan-local
       if: steps.scale-local.outcome == 'success'
       continue-on-error: true
       uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
       env:
-        SONAR_TOKEN: ${{ inputs.sonar-token }}
+        # Prefer the self-hosted server's own token; fall back to the
+        # SonarCloud one ONLY so that upgrading this action cannot break a
+        # caller that has not set the new input yet. The step above says so
+        # out loud when that fallback is taken.
+        SONAR_TOKEN: ${{ inputs.local-sonar-token != '' && inputs.local-sonar-token || inputs.sonar-token }}
         SONAR_HOST_URL: http://sonarqube.ci.svc.cluster.local:9000
       with:
         projectBaseDir: ${{ inputs.project-base-dir }}

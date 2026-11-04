@@ -43,11 +43,47 @@ This action keeps a scan happening either way:
     project-key: ${{ steps.sonar-args.outputs.project_key }}
     organization: ${{ steps.sonar-args.outputs.organization }}
     sonar-token: ${{ secrets.SONAR_TOKEN }}
+    local-sonar-token: ${{ secrets.SONARQUBE_LOCAL_TOKEN }}
     extra-sonar-args: >
       -Dsonar.go.coverage.reportPaths=coverage.out
       -Dsonar.sources=.
     notify-role-to-assume: ${{ secrets.CI_NOTIFY_ROLE_ARN }}
 ```
+
+## Two tokens, because there are two servers
+
+`sonar-token` authenticates against **sonarcloud.io**. `local-sonar-token`
+authenticates against the fleet's **self-hosted** SonarQube, which is a
+different server with its own user database — a SonarCloud token is not a
+credential on it.
+
+Getting this wrong is silent in a specific, expensive way. `resolve_target`
+correctly routes every private repo to the self-hosted server; if only
+`sonar-token` is supplied, the scan then presents the SonarCloud token and
+the scanner answers:
+
+```
+ERROR Failed to query server version:
+GET http://sonarqube.ci.svc.cluster.local:9000/api/v2/analysis/version
+failed with HTTP 401 Unauthorized.
+Please check the property sonar.token or the environment variable SONAR_TOKEN.
+```
+
+which reads as a bad or revoked secret rather than as "wrong server
+entirely". Measured 2026-11-04: every private repo's sonar gate was
+permanently red with the routing working exactly as designed and a perfectly
+valid token. The check that would have caught it did not exist, which is why
+`test_action_wiring.py` now exists.
+
+`local-sonar-token` is **optional and falls back to `sonar-token`**, so
+upgrading this action cannot change a caller's behaviour. But that fallback
+IS the broken case, so taking it emits a `::warning` naming the fix instead
+of failing mutely.
+
+Mint it as a `GLOBAL_ANALYSIS_TOKEN` on the in-cluster server. It persists
+across that deployment's scale-to-zero cycle, because `/opt/sonarqube/data`
+— the embedded database, hence users and tokens — is on the `sonarqube-data`
+PVC (`ffreis-home-infra`, role `sonarqube`).
 
 `extra-sonar-args` is whatever language-specific `-Dsonar.*` flags the
 reusable workflow already built (coverage paths, `sonar.sources`/`sonar.tests`,
